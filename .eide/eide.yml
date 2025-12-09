@@ -8,7 +8,6 @@ srcDirs:
   - Drivers
   - Middlewares
   - USBPD
-  - CherryUSB
   - FATFS
 virtualFolder:
   name: <virtual_root>
@@ -51,12 +50,14 @@ targets:
         - Drivers/STM32G4xx_HAL_Driver/Src
         - Core/Inc
         - Core/Src
-        - CherryUSB/port/fsdev
-        - CherryUSB/common
-        - CherryUSB/core
-        - CherryUSB/class/cdc
-        - CherryUSB/class/hub
-        - CherryUSB/user
+        - Middlewares/CherryUSB/port/fsdev
+        - Middlewares/CherryUSB/common
+        - Middlewares/CherryUSB/core
+        - Middlewares/CherryUSB/class/cdc
+        - Middlewares/CherryUSB/class/hub
+        - Middlewares/CherryUSB/user
+        - Middlewares/ATAPI/Inc
+        - Middlewares/ATAPI/Src
       libList: []
     excludeList: []
     toolchain: GCC
