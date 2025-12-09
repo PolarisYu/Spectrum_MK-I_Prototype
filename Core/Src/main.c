@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "cordic.h"
 #include "crc.h"
 #include "dma.h"
@@ -114,6 +115,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_TIM15_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
   cdc_acm_init(u_busid, USB_BASE);
