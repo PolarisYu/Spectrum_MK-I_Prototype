@@ -37,17 +37,8 @@
 void MX_USBPD_Init(void)
 {
 
-  /* Global Init of USBPD HW */
-  USBPD_HW_IF_GlobalHwInit();
-
   /* Initialize the Device Policy Manager */
   if (USBPD_OK != USBPD_DPM_InitCore())
-  {
-    while(1);
-  }
-
-  /* Initialise the DPM application */
-  if (USBPD_OK != USBPD_DPM_UserInit())
   {
     while(1);
   }

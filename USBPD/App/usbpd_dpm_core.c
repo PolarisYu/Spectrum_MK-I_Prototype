@@ -40,19 +40,12 @@ void USBPD_CAD_Task(void);
 #if defined(USE_STM32_UTILITY_OS)
 void TimerCADfunction(void *);
 #endif /* USE_STM32_UTILITY_OS */
-void USBPD_PE_Task_P0(void);
-void USBPD_PE_Task_P1(void);
-#if defined(USE_STM32_UTILITY_OS)
-void TimerPE0function(void *pArg);
-void TimerPE1function(void *pArg);
-#endif /* USE_STM32_UTILITY_OS */
 void USBPD_TaskUser(void);
 
 /* Private typedef -----------------------------------------------------------*/
  /* !_RTOS */
 #if defined(USE_STM32_UTILITY_OS)
 UTIL_TIMER_Object_t TimerCAD;
-UTIL_TIMER_Object_t TimerPE0, TimerPE1;
 #endif /* USE_STM32_UTILITY_OS */
 
 /* Private define ------------------------------------------------------------*/
@@ -78,8 +71,6 @@ static uint32_t DPM_Sleep_start[USBPD_PORT_COUNT + OFFSET_CAD];
 USBPD_ParamsTypeDef   DPM_Params[USBPD_PORT_COUNT];
 
 /* Private function prototypes -----------------------------------------------*/
-static void USBPD_PE_TaskWakeUp(uint8_t PortNum);
-static void DPM_ManageAttachedState(uint8_t PortNum, USBPD_CAD_EVENT State, CCxPin_TypeDef Cc);
 void USBPD_DPM_CADCallback(uint8_t PortNum, USBPD_CAD_EVENT State, CCxPin_TypeDef Cc);
 static void USBPD_DPM_CADTaskWakeUp(void);
 
@@ -92,37 +83,6 @@ USBPD_StatusTypeDef USBPD_DPM_InitCore(void)
   /* variable to get dynamique memory allocated by usbpd stack */
   uint32_t stack_dynamemsize;
   USBPD_StatusTypeDef _retr = USBPD_OK;
-
-  static const USBPD_PE_Callbacks dpmCallbacks =
-  {
-    NULL,
-    USBPD_DPM_HardReset,
-    NULL,
-    USBPD_DPM_Notification,
-    USBPD_DPM_ExtendedMessageReceived,
-    USBPD_DPM_GetDataInfo,
-    USBPD_DPM_SetDataInfo,
-    NULL,
-    USBPD_DPM_SNK_EvaluateCapabilities,
-    NULL,
-    USBPD_PE_TaskWakeUp,
-#if defined(_VCONN_SUPPORT)
-    USBPD_DPM_EvaluateVconnSwap,
-    USBPD_DPM_PE_VconnPwr,
-#else
-    NULL,
-    NULL,
-#endif /* _VCONN_SUPPORT */
-    USBPD_DPM_EnterErrorRecovery,
-    USBPD_DPM_EvaluateDataRoleSwap,
-    USBPD_DPM_IsPowerReady
-  };
-
-  static const USBPD_CAD_Callbacks CAD_cbs =
-  {
-    USBPD_DPM_CADCallback,
-    USBPD_DPM_CADTaskWakeUp
-  };
 
   /* Check the lib selected */
   if (USBPD_TRUE != USBPD_PE_CheckLIB(_LIB_ID))
@@ -138,42 +98,17 @@ USBPD_StatusTypeDef USBPD_DPM_InitCore(void)
   /* done to avoid warning */
   (void)stack_dynamemsize;
 
-  for (uint8_t _port_index = 0; _port_index < USBPD_PORT_COUNT; ++_port_index)
+  DPM_Params[USBPD_PORT_0].PE_PowerRole     = DPM_Settings[USBPD_PORT_0].PE_DefaultRole;
+
   {
-    /* Variable to be sure that DPM is correctly initialized */
-    DPM_Params[_port_index].DPM_Initialized = USBPD_FALSE;
+    static const USBPD_CAD_Callbacks CAD_cbs = { USBPD_DPM_CADCallback, USBPD_DPM_CADTaskWakeUp };
+  /* Init CAD */
+    CHECK_CAD_FUNCTION_CALL(USBPD_CAD_Init(USBPD_PORT_0, &CAD_cbs, (USBPD_SettingsTypeDef *)&DPM_Settings[USBPD_PORT_0],
+                                           &DPM_Params[USBPD_PORT_0]));
 
-    /* check the stack settings */
-    DPM_Params[_port_index].PE_SpecRevision  = DPM_Settings[_port_index].PE_SpecRevision;
-    DPM_Params[_port_index].PE_PowerRole     = DPM_Settings[_port_index].PE_DefaultRole;
-    DPM_Params[_port_index].PE_SwapOngoing   = USBPD_FALSE;
-    DPM_Params[_port_index].ActiveCCIs       = CCNONE;
-    DPM_Params[_port_index].VconnCCIs        = CCNONE;
-    DPM_Params[_port_index].VconnStatus      = USBPD_FALSE;
-
-    /* CAD SET UP : Port 0 */
-    CHECK_CAD_FUNCTION_CALL(USBPD_CAD_Init(_port_index, (USBPD_CAD_Callbacks *)&CAD_cbs,
-                                           (USBPD_SettingsTypeDef *)&DPM_Settings[_port_index], &DPM_Params[_port_index]));
-
-    /* PE SET UP : Port 0 */
-    CHECK_PE_FUNCTION_CALL(USBPD_PE_Init(_port_index, (USBPD_SettingsTypeDef *)&DPM_Settings[_port_index],
-                                         &DPM_Params[_port_index], &dpmCallbacks));
-
-  /* DPM is correctly initialized */
-    DPM_Params[_port_index].DPM_Initialized = USBPD_TRUE;
-
-    /* Enable CAD on Port 0 */
-  USBPD_CAD_PortEnable(_port_index, USBPD_CAD_ENABLE);
+  /* Enable CAD on Port 0 */
+  USBPD_CAD_PortEnable(USBPD_PORT_0, USBPD_CAD_ENABLE);
   }
-
-#if defined(USE_STM32_UTILITY_OS)
-  /* initialise timer server */
-  UTIL_TIMER_Init();
-
-  /* initialize the sequencer */
-  UTIL_SEQ_Init();
-#endif /* USE_STM32_UTILITY_OS */
-
   return _retr;
 }
 
@@ -285,14 +220,6 @@ void USBPD_DPM_Run(void)
   UTIL_SEQ_SetTask(TASK_CAD,  0);
   UTIL_TIMER_Create(&TimerCAD, 10, UTIL_TIMER_ONESHOT, TimerCADfunction, NULL);
 
-  UTIL_SEQ_RegTask(TASK_PE_0, 0,  USBPD_PE_Task_P0);
-  UTIL_SEQ_PauseTask(TASK_PE_0);
-  UTIL_TIMER_Create(&TimerPE0, 10, UTIL_TIMER_ONESHOT, TimerPE0function, NULL);
-#if USBPD_PORT_COUNT == 2
-  UTIL_SEQ_RegTask(TASK_PE_1, 0,  USBPD_PE_Task_P1);
-  UTIL_SEQ_PauseTask(TASK_PE_1);
-  UTIL_TIMER_Create(&TimerPE1, 10, UTIL_TIMER_ONESHOT, TimerPE1function, NULL);
-#endif /* USBPD_PORT_COUNT == 2 */
  /* !USBPDCORE_LIB_NO_PD */
 
   UTIL_SEQ_RegTask(TASK_USER, 0, USBPD_TaskUser);
@@ -312,59 +239,9 @@ void USBPD_DPM_Run(void)
       DPM_Sleep_start[USBPD_PORT_COUNT] = HAL_GetTick();
     }
 
-    uint32_t port = 0;
-
-    for (port = 0; port < USBPD_PORT_COUNT; port++)
-    {
-      if ((HAL_GetTick() - DPM_Sleep_start[port]) >= DPM_Sleep_time[port])
-      {
-        DPM_Sleep_time[port] =
-          USBPD_PE_StateMachine_SNK(port);
-        DPM_Sleep_start[port] = HAL_GetTick();
-      }
-    }
-
     USBPD_DPM_UserExecute(NULL);
 
   } while (1u == 1u);
-#endif /* USE_STM32_UTILITY_OS */
-}
-
-/**
-  * @brief  Initialize DPM (port power role, PWR_IF, CAD and PE Init procedures)
-  * @retval USBPD status
-  */
-void USBPD_DPM_TimerCounter(void)
-{
-  /* Call PE/PRL timers functions only if DPM is initialized */
-  if (USBPD_TRUE == DPM_Params[USBPD_PORT_0].DPM_Initialized)
-  {
-    USBPD_DPM_UserTimerCounter(USBPD_PORT_0);
-    USBPD_PE_TimerCounter(USBPD_PORT_0);
-    USBPD_PRL_TimerCounter(USBPD_PORT_0);
-  }
-#if USBPD_PORT_COUNT==2
-  if (USBPD_TRUE == DPM_Params[USBPD_PORT_1].DPM_Initialized)
-  {
-    USBPD_DPM_UserTimerCounter(USBPD_PORT_1);
-    USBPD_PE_TimerCounter(USBPD_PORT_1);
-    USBPD_PRL_TimerCounter(USBPD_PORT_1);
-  }
-#endif /* USBPD_PORT_COUNT == 2 */
-
-}
-
-/**
-  * @brief  WakeUp PE task
-  * @param  PortNum port number
-  * @retval None
-  */
-static void USBPD_PE_TaskWakeUp(uint8_t PortNum)
-{
-#if defined(USE_STM32_UTILITY_OS)
-  UTIL_SEQ_SetTask(PortNum == 0 ? TASK_PE_0 : TASK_PE_1, 0);
-#else
-  DPM_Sleep_time[PortNum] = 0;
 #endif /* USE_STM32_UTILITY_OS */
 }
 
@@ -390,74 +267,28 @@ static void USBPD_DPM_CADTaskWakeUp(void)
   */
 void USBPD_DPM_CADCallback(uint8_t PortNum, USBPD_CAD_EVENT State, CCxPin_TypeDef Cc)
 {
+#ifdef _TRACE
+  USBPD_TRACE_Add(USBPD_TRACE_CADEVENT, PortNum, (uint8_t)State, NULL, 0);
+#endif /* _TRACE */
 
   switch (State)
   {
-    case USBPD_CAD_EVENT_ATTEMC :
+  case USBPD_CAD_EVENT_ATTEMC :
+  case USBPD_CAD_EVENT_ATTACHED :
     {
-#ifdef _VCONN_SUPPORT
-      DPM_Params[PortNum].VconnStatus = USBPD_TRUE;
-#endif /* _VCONN_SUPPORT */
-      DPM_ManageAttachedState(PortNum, State, Cc);
-#ifdef _VCONN_SUPPORT
-      DPM_CORE_DEBUG_TRACE(PortNum, "Note: VconnStatus=TRUE");
-#endif /* _VCONN_SUPPORT */
-      break;
-    }
-    case USBPD_CAD_EVENT_ATTACHED :
-      DPM_ManageAttachedState(PortNum, State, Cc);
-      break;
-    case USBPD_CAD_EVENT_DETACHED :
-    case USBPD_CAD_EVENT_EMC :
-    {
-      /* The ufp is detached */
-      (void)USBPD_PE_IsCableConnected(PortNum, 0);
-      /* Terminate PE task */
-#if defined(USE_STM32_UTILITY_OS)
-      UTIL_SEQ_PauseTask(PortNum == 0 ? TASK_PE_0 : TASK_PE_1);
-#else
-      DPM_Sleep_time[PortNum] = 0xFFFFFFFFU;
-#endif /* USE_STM32_UTILITY_OS */
-      DPM_Params[PortNum].PE_SwapOngoing = USBPD_FALSE;
-      DPM_Params[PortNum].ActiveCCIs = CCNONE;
-      DPM_Params[PortNum].PE_Power   = USBPD_POWER_NO;
+      DPM_Params[PortNum].ActiveCCIs = Cc;
       USBPD_DPM_UserCableDetection(PortNum, State);
-#ifdef _VCONN_SUPPORT
-      DPM_Params[PortNum].VconnCCIs = CCNONE;
-      DPM_Params[PortNum].VconnStatus = USBPD_FALSE;
-      DPM_CORE_DEBUG_TRACE(PortNum, "Note: VconnStatus=FALSE");
-#endif /* _VCONN_SUPPORT */
       break;
     }
-    default :
-      /* nothing to do */
+  case USBPD_CAD_EVENT_DETACHED :
+  case USBPD_CAD_EVENT_EMC :
+    {
+      USBPD_DPM_UserCableDetection(PortNum, State);
+      DPM_Params[PortNum].ActiveCCIs = CCNONE;
       break;
+    }
+  default :
+    /* nothing to do */
+    break;
   }
-}
-
-static void DPM_ManageAttachedState(uint8_t PortNum, USBPD_CAD_EVENT State, CCxPin_TypeDef Cc)
-{
-#ifdef _VCONN_SUPPORT
-  if (CC1 == Cc)
-  {
-    DPM_Params[PortNum].VconnCCIs = CC2;
-  }
-  if (CC2 == Cc)
-  {
-    DPM_Params[PortNum].VconnCCIs = CC1;
-  }
-#endif /* _VCONN_SUPPORT */
-  DPM_Params[PortNum].ActiveCCIs = Cc;
-  (void)USBPD_PE_IsCableConnected(PortNum, 1);
-
-  USBPD_DPM_UserCableDetection(PortNum, State);
-
-#if defined(USE_STM32_UTILITY_OS)
-  /* Resume the task */
-  UTIL_SEQ_ResumeTask(PortNum == 0 ? TASK_PE_0 : TASK_PE_1);
-  /* Enable task execution */
-  UTIL_SEQ_SetTask(PortNum == 0 ? TASK_PE_0 : TASK_PE_1, 0);
-#else
-  DPM_Sleep_time[PortNum] = 0U;
-#endif /* USE_STM32_UTILITY_OS */
 }

@@ -27,6 +27,7 @@
 #include "rng.h"
 #include "rtc.h"
 #include "spi.h"
+#include "tim.h"
 #include "ucpd.h"
 #include "usb.h"
 #include "usbpd.h"
@@ -110,6 +111,9 @@ int main(void)
   if (MX_FATFS_Init() != APP_OK) {
     Error_Handler();
   }
+  MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
   cdc_acm_init(u_busid, USB_BASE);
