@@ -69,10 +69,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SYS_STATUS_LED_Pin GPIO_PIN_14
-#define SYS_STATUS_LED_GPIO_Port GPIOB
-#define EXT_I2S_MCLK_Pin GPIO_PIN_8
-#define EXT_I2S_MCLK_GPIO_Port GPIOA
+#define SYS_STATUS_LED_Pin GPIO_PIN_2
+#define SYS_STATUS_LED_GPIO_Port GPIOA
+#define VBUS_SNS_Pin GPIO_PIN_11
+#define VBUS_SNS_GPIO_Port GPIOB
+#define EXT_I2S_LRCK_Pin GPIO_PIN_2
+#define EXT_I2S_LRCK_GPIO_Port GPIOD
+#define EXT_I2S_SCLK_Pin GPIO_PIN_3
+#define EXT_I2S_SCLK_GPIO_Port GPIOB
+#define MCU_SPDIF_OUT_Pin GPIO_PIN_5
+#define MCU_SPDIF_OUT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

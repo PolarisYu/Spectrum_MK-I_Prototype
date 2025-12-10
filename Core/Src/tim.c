@@ -202,12 +202,12 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
     /**TIM3 GPIO Configuration
     PD2     ------> TIM3_ETR
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_2;
+    GPIO_InitStruct.Pin = EXT_I2S_LRCK_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
-    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+    HAL_GPIO_Init(EXT_I2S_LRCK_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM3_MspInit 1 */
 
@@ -221,16 +221,16 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
     /* TIM4 clock enable */
     __HAL_RCC_TIM4_CLK_ENABLE();
 
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
     /**TIM4 GPIO Configuration
-    PA8     ------> TIM4_ETR
+    PB3     ------> TIM4_ETR
     */
-    GPIO_InitStruct.Pin = EXT_I2S_MCLK_Pin;
+    GPIO_InitStruct.Pin = EXT_I2S_SCLK_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF10_TIM4;
-    HAL_GPIO_Init(EXT_I2S_MCLK_GPIO_Port, &GPIO_InitStruct);
+    GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
+    HAL_GPIO_Init(EXT_I2S_SCLK_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM4_MspInit 1 */
 
@@ -262,15 +262,15 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
 
   /* USER CODE END TIM15_MspPostInit 0 */
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
     /**TIM15 GPIO Configuration
-    PB14     ------> TIM15_CH1
+    PA2     ------> TIM15_CH1
     */
     GPIO_InitStruct.Pin = SYS_STATUS_LED_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF1_TIM15;
+    GPIO_InitStruct.Alternate = GPIO_AF9_TIM15;
     HAL_GPIO_Init(SYS_STATUS_LED_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM15_MspPostInit 1 */
@@ -294,7 +294,7 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
     /**TIM3 GPIO Configuration
     PD2     ------> TIM3_ETR
     */
-    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_2);
+    HAL_GPIO_DeInit(EXT_I2S_LRCK_GPIO_Port, EXT_I2S_LRCK_Pin);
 
   /* USER CODE BEGIN TIM3_MspDeInit 1 */
 
@@ -309,9 +309,9 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
     __HAL_RCC_TIM4_CLK_DISABLE();
 
     /**TIM4 GPIO Configuration
-    PA8     ------> TIM4_ETR
+    PB3     ------> TIM4_ETR
     */
-    HAL_GPIO_DeInit(EXT_I2S_MCLK_GPIO_Port, EXT_I2S_MCLK_Pin);
+    HAL_GPIO_DeInit(EXT_I2S_SCLK_GPIO_Port, EXT_I2S_SCLK_Pin);
 
   /* USER CODE BEGIN TIM4_MspDeInit 1 */
 
