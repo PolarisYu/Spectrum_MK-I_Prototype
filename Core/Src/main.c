@@ -22,7 +22,6 @@
 #include "cordic.h"
 #include "crc.h"
 #include "dma.h"
-#include "app_fatfs.h"
 #include "fmac.h"
 #include "i2c.h"
 #include "rng.h"
@@ -30,9 +29,8 @@
 #include "sai.h"
 #include "spi.h"
 #include "tim.h"
-#include "ucpd.h"
+#include "usart.h"
 #include "usb.h"
-#include "usbpd.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -107,10 +105,6 @@ int main(void)
   MX_RNG_Init();
   MX_RTC_Init();
   MX_SPI1_Init();
-  MX_UCPD1_Init();
-  if (MX_FATFS_Init() != APP_OK) {
-    Error_Handler();
-  }
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_TIM15_Init();
@@ -119,21 +113,20 @@ int main(void)
   MX_I2C2_Init();
   MX_SPI3_Init();
   MX_FMAC_Init();
+  MX_SPI2_Init();
+  MX_I2C3_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   cdc_acm_init(u_busid, USB_BASE);
 
   /* USER CODE END 2 */
 
-  /* USBPD initialisation ---------------------------------*/
-  MX_USBPD_Init();
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-    USBPD_DPM_Run();
 
     /* USER CODE BEGIN 3 */
   }
@@ -161,12 +154,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI48
-                              |RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_LSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE
+                              |RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;

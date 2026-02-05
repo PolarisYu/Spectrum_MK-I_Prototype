@@ -20,7 +20,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32g4xx_it.h"
-#include "usbpd.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -61,8 +60,6 @@ extern DMA_HandleTypeDef hdma_cordic_read;
 extern DMA_HandleTypeDef hdma_cordic_write;
 extern DMA_HandleTypeDef hdma_fmac_read;
 extern DMA_HandleTypeDef hdma_fmac_write;
-extern DMA_HandleTypeDef hdma_i2c2_rx;
-extern DMA_HandleTypeDef hdma_i2c2_tx;
 extern DMA_HandleTypeDef hdma_sai1_b;
 extern DMA_HandleTypeDef hdma_spi1_tx;
 extern DMA_HandleTypeDef hdma_spi1_rx;
@@ -200,7 +197,6 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
-  USBPD_DPM_TimerCounter();
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
   /* USER CODE END SysTick_IRQn 1 */
@@ -267,32 +263,6 @@ void DMA1_Channel4_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
 
   /* USER CODE END DMA1_Channel4_IRQn 1 */
-}
-
-/**
-  * @brief This function handles DMA1 channel5 global interrupt.
-  */
-void DMA1_Channel5_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA1_Channel5_IRQn 0 */
-
-  /* USER CODE END DMA1_Channel5_IRQn 0 */
-  /* USER CODE BEGIN DMA1_Channel5_IRQn 1 */
-
-  /* USER CODE END DMA1_Channel5_IRQn 1 */
-}
-
-/**
-  * @brief This function handles DMA1 channel6 global interrupt.
-  */
-void DMA1_Channel6_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA1_Channel6_IRQn 0 */
-
-  /* USER CODE END DMA1_Channel6_IRQn 0 */
-  /* USER CODE BEGIN DMA1_Channel6_IRQn 1 */
-
-  /* USER CODE END DMA1_Channel6_IRQn 1 */
 }
 
 /**
@@ -394,21 +364,6 @@ void DMA2_Channel4_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles UCPD1 interrupt / UCPD1 wake-up interrupt through EXTI line 43.
-  */
-void UCPD1_IRQHandler(void)
-{
-  /* USER CODE BEGIN UCPD1_IRQn 0 */
-
-  /* USER CODE END UCPD1_IRQn 0 */
-  USBPD_PORT0_IRQHandler();
-
-  /* USER CODE BEGIN UCPD1_IRQn 1 */
-
-  /* USER CODE END UCPD1_IRQn 1 */
-}
-
-/**
   * @brief This function handles DMA1 channel8 global interrupt.
   */
 void DMA1_Channel8_IRQHandler(void)
@@ -420,34 +375,6 @@ void DMA1_Channel8_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel8_IRQn 1 */
 
   /* USER CODE END DMA1_Channel8_IRQn 1 */
-}
-
-/**
-  * @brief This function handles DMA2 channel7 global interrupt.
-  */
-void DMA2_Channel7_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA2_Channel7_IRQn 0 */
-
-  /* USER CODE END DMA2_Channel7_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c2_rx);
-  /* USER CODE BEGIN DMA2_Channel7_IRQn 1 */
-
-  /* USER CODE END DMA2_Channel7_IRQn 1 */
-}
-
-/**
-  * @brief This function handles DMA2 channel8 global interrupt.
-  */
-void DMA2_Channel8_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA2_Channel8_IRQn 0 */
-
-  /* USER CODE END DMA2_Channel8_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_i2c2_tx);
-  /* USER CODE BEGIN DMA2_Channel8_IRQn 1 */
-
-  /* USER CODE END DMA2_Channel8_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

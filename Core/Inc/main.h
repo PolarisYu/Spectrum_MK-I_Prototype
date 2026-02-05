@@ -29,18 +29,6 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "stm32g4xx_hal.h"
 
-#include "stm32g4xx_ll_ucpd.h"
-#include "stm32g4xx_ll_bus.h"
-#include "stm32g4xx_ll_cortex.h"
-#include "stm32g4xx_ll_rcc.h"
-#include "stm32g4xx_ll_system.h"
-#include "stm32g4xx_ll_utils.h"
-#include "stm32g4xx_ll_pwr.h"
-#include "stm32g4xx_ll_gpio.h"
-#include "stm32g4xx_ll_dma.h"
-
-#include "stm32g4xx_ll_exti.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -69,10 +57,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SYS_STATUS_LED_Pin GPIO_PIN_2
-#define SYS_STATUS_LED_GPIO_Port GPIOA
-#define VBUS_SNS_Pin GPIO_PIN_11
-#define VBUS_SNS_GPIO_Port GPIOB
+#define DATA_LED_Pin GPIO_PIN_3
+#define DATA_LED_GPIO_Port GPIOA
+#define SYS_STATUS_LED_Pin GPIO_PIN_14
+#define SYS_STATUS_LED_GPIO_Port GPIOB
+#define I2S_MCLK_IN_Pin GPIO_PIN_9
+#define I2S_MCLK_IN_GPIO_Port GPIOC
 #define EXT_I2S_LRCK_Pin GPIO_PIN_2
 #define EXT_I2S_LRCK_GPIO_Port GPIOD
 #define EXT_I2S_SCLK_Pin GPIO_PIN_3

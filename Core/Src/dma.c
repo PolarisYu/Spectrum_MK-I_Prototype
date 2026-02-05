@@ -57,12 +57,6 @@ void MX_DMA_Init(void)
   /* DMA1_Channel4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-  /* DMA1_Channel5_IRQn interrupt configuration */
-  NVIC_SetPriority(DMA1_Channel5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
-  NVIC_EnableIRQ(DMA1_Channel5_IRQn);
-  /* DMA1_Channel6_IRQn interrupt configuration */
-  NVIC_SetPriority(DMA1_Channel6_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
-  NVIC_EnableIRQ(DMA1_Channel6_IRQn);
   /* DMA1_Channel7_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
@@ -78,12 +72,6 @@ void MX_DMA_Init(void)
   /* DMA1_Channel8_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel8_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel8_IRQn);
-  /* DMA2_Channel7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Channel7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Channel7_IRQn);
-  /* DMA2_Channel8_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Channel8_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Channel8_IRQn);
 
 }
 
