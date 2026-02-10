@@ -6,15 +6,11 @@ packDir: null
 srcDirs:
   - Core
   - Drivers
-  - Middlewares
-  - USBPD
-  - FATFS
   - APP
 virtualFolder:
   name: <virtual_root>
   files:
     - path: startup_stm32g491xx.s
-    - path: Middlewares/ST/STM32_USBPD_Library/Core/lib/USBPDCORE_PD3_CONFIG_MINSNK_CM4_wc32.a
   folders: []
 dependenceList: []
 outDir: build
@@ -26,23 +22,7 @@ targets:
       defineList:
         - USE_HAL_DRIVER
         - STM32G491xx
-        - USE_FULL_LL_DRIVER
-        - USBPD_PORT_COUNT=1
-        - _SNK
-        - USBPDCORE_LIB_PD3_CONFIG_MINSNK
       incList:
-        - USBPD/App
-        - USBPD/Target
-        - USBPD
-        - Middlewares/Third_Party/FatFs/src
-        - Middlewares/Third_Party/FatFs/src/option
-        - Middlewares/ST/STM32_USBPD_Library/Core/inc
-        - Middlewares/ST/STM32_USBPD_Library/Core/lib
-        - Middlewares/ST/STM32_USBPD_Library/Core/src
-        - Middlewares/ST/STM32_USBPD_Library/Devices/STM32G4XX/inc
-        - Middlewares/ST/STM32_USBPD_Library/Devices/STM32G4XX/src
-        - FATFS/App
-        - FATFS/Target
         - Drivers/CMSIS/Include
         - Drivers/CMSIS/Device/ST/STM32G4xx/Include
         - Drivers/CMSIS/Device/ST/STM32G4xx/Source/Templates
@@ -51,14 +31,12 @@ targets:
         - Drivers/STM32G4xx_HAL_Driver/Src
         - Core/Inc
         - Core/Src
-        - Middlewares/CherryUSB/port/fsdev
-        - Middlewares/CherryUSB/common
-        - Middlewares/CherryUSB/core
-        - Middlewares/CherryUSB/class/cdc
-        - Middlewares/CherryUSB/class/hub
-        - Middlewares/ATAPI/Inc
-        - Middlewares/ATAPI/Src
         - APP
+        - Drivers/CherryUSB/class/cdc
+        - Drivers/CherryUSB/class/hub
+        - Drivers/CherryUSB/common
+        - Drivers/CherryUSB/core
+        - Drivers/CherryUSB/port/fsdev
       libList: []
     excludeList: []
     toolchain: GCC
@@ -106,5 +84,5 @@ targets:
           vendor: ST
         otherCmds: ""
         proType: 1
-        speed: 8000
+        speed: 16000
     uploader: JLink
