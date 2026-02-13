@@ -60,7 +60,7 @@ void USB_IRQHandler(void)
     USBD_IRQHandler(0);
 }
 
-void USB_LP_IRQHandler(void)
-{
-    USBD_IRQHandler(0);
-}
+// void USB_LP_IRQHandler(void)
+// {
+//     USBD_IRQHandler(0);
+// }

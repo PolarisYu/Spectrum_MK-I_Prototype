@@ -36,6 +36,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "cdc_acm_ringbuffer.h"
+#include "Segger_RTT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,6 +68,24 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/**
+  * @brief USB Log (Retargets the C library printf function to the USART)
+  */
+#if defined(__CC_ARM)      // Keil
+int fputc(int ch,FILE *f)
+{
+  SEGGER_RTT_Write(0, ptr, len);
+  return len;
+}
+#elif defined(__GNUC__)   // GCC
+int _write(int fd, char *ptr, int len)  
+{  
+  SEGGER_RTT_Write(0, ptr, len);
+  return len;
+  // HAL_Delay();
+}
+#endif
 
 /* USER CODE END 0 */
 
@@ -120,9 +139,9 @@ int main(void)
 
   cdc_acm_init(u_busid, USB_BASE);
 
-  HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
+  // HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
   
-  HAL_Delay(1000);
+  HAL_Delay(100);
 
   HAL_GPIO_WritePin(DAC_PW_EN_GPIO_Port, DAC_PW_EN_Pin, GPIO_PIN_SET);
 
@@ -154,7 +173,7 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
+  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -166,7 +185,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV4;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV3;
   RCC_OscInitStruct.PLL.PLLN = 85;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;

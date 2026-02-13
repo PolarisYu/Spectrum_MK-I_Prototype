@@ -22,6 +22,7 @@ targets:
       defineList:
         - USE_HAL_DRIVER
         - STM32G491xx
+        - USE_CHERRY_USB
       incList:
         - Drivers/CMSIS/Include
         - Drivers/CMSIS/Device/ST/STM32G4xx/Include
@@ -37,6 +38,9 @@ targets:
         - Drivers/CherryUSB/common
         - Drivers/CherryUSB/core
         - Drivers/CherryUSB/port/fsdev
+        - APP/CDC_ACM
+        - APP/LetterShell
+        - APP/SeggerRTT
       libList: []
     excludeList: []
     toolchain: GCC

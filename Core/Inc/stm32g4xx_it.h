@@ -27,7 +27,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usb_def.h"
+#include "usb_dc.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -61,6 +62,8 @@ void DMA1_Channel3_IRQHandler(void);
 void DMA1_Channel4_IRQHandler(void);
 void DMA1_Channel7_IRQHandler(void);
 void ADC1_2_IRQHandler(void);
+void USB_HP_IRQHandler(void);
+void USB_LP_IRQHandler(void);
 void TIM1_BRK_TIM15_IRQHandler(void);
 void SPI1_IRQHandler(void);
 void DMA2_Channel1_IRQHandler(void);

@@ -67,6 +67,7 @@ extern DMA_HandleTypeDef hdma_spi3_rx;
 extern DMA_HandleTypeDef hdma_spi3_tx;
 extern SPI_HandleTypeDef hspi1;
 extern TIM_HandleTypeDef htim15;
+extern PCD_HandleTypeDef hpcd_USB_FS;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -291,6 +292,38 @@ void ADC1_2_IRQHandler(void)
   /* USER CODE BEGIN ADC1_2_IRQn 1 */
 
   /* USER CODE END ADC1_2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USB high priority interrupt remap.
+  */
+void USB_HP_IRQHandler(void)
+{
+  /* USER CODE BEGIN USB_HP_IRQn 0 */
+
+  /* USER CODE END USB_HP_IRQn 0 */
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+  /* USER CODE BEGIN USB_HP_IRQn 1 */
+
+  /* USER CODE END USB_HP_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USB low priority interrupt remap.
+  */
+void USB_LP_IRQHandler(void)
+{
+  /* USER CODE BEGIN USB_LP_IRQn 0 */
+  #if !defined(USE_CHERRY_USB)
+  /* USER CODE END USB_LP_IRQn 0 */
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+  /* USER CODE BEGIN USB_LP_IRQn 1 */
+  #endif
+
+  // CherryUSB 中断处理函数
+  USBD_IRQHandler(0);
+
+  /* USER CODE END USB_LP_IRQn 1 */
 }
 
 /**
