@@ -59,16 +59,28 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define DATA_LED_Pin GPIO_PIN_3
 #define DATA_LED_GPIO_Port GPIOA
+#define SE_AMP_EN_Pin GPIO_PIN_11
+#define SE_AMP_EN_GPIO_Port GPIOB
+#define SPI2_LATCH_Pin GPIO_PIN_12
+#define SPI2_LATCH_GPIO_Port GPIOB
 #define SYS_STATUS_LED_Pin GPIO_PIN_14
 #define SYS_STATUS_LED_GPIO_Port GPIOB
+#define AMP_PW_EN_Pin GPIO_PIN_6
+#define AMP_PW_EN_GPIO_Port GPIOC
+#define DAC_PW_EN_Pin GPIO_PIN_7
+#define DAC_PW_EN_GPIO_Port GPIOC
 #define I2S_MCLK_IN_Pin GPIO_PIN_9
 #define I2S_MCLK_IN_GPIO_Port GPIOC
+#define DAC_PDN_Pin GPIO_PIN_10
+#define DAC_PDN_GPIO_Port GPIOA
 #define EXT_I2S_LRCK_Pin GPIO_PIN_2
 #define EXT_I2S_LRCK_GPIO_Port GPIOD
 #define EXT_I2S_SCLK_Pin GPIO_PIN_3
 #define EXT_I2S_SCLK_GPIO_Port GPIOB
 #define MCU_SPDIF_OUT_Pin GPIO_PIN_5
 #define MCU_SPDIF_OUT_GPIO_Port GPIOB
+#define BAL_AMP_EN_Pin GPIO_PIN_6
+#define BAL_AMP_EN_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
