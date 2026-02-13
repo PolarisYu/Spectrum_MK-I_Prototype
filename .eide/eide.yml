@@ -40,7 +40,7 @@ targets:
         - Drivers/CherryUSB/port/fsdev
         - APP/CDC_ACM
         - APP/LetterShell
-        - APP/SeggerRTT
+        - Drivers/SeggerRTT
       libList: []
     excludeList: []
     toolchain: GCC
