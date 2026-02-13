@@ -37,6 +37,8 @@
 /* USER CODE BEGIN Includes */
 #include "cdc_acm_ringbuffer.h"
 #include "Segger_RTT.h"
+#include "shell.h"
+#include "shell_port.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,7 +115,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  SEGGER_RTT_Init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -138,17 +140,10 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   cdc_acm_init(u_busid, USB_BASE);
+  userShellInit();
 
   // HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
   
-  HAL_Delay(100);
-
-  HAL_GPIO_WritePin(DAC_PW_EN_GPIO_Port, DAC_PW_EN_Pin, GPIO_PIN_SET);
-
-  HAL_Delay(1000);
-
-  HAL_GPIO_WritePin(DAC_PDN_GPIO_Port, DAC_PDN_Pin, GPIO_PIN_SET);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -158,6 +153,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // shellTask(&shell); // Shell is now interrupt-driven
   }
   /* USER CODE END 3 */
 }

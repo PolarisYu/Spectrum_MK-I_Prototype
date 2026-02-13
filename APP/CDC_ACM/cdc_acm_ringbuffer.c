@@ -6,6 +6,7 @@
 #include "usbd_core.h"
 #include "usbd_cdc_acm.h"
 #include "chry_ringbuffer.h"  // 引入CherryRingBuffer头文件
+#include "main.h"             // 引入main.h以包含CMSIS头文件 (如 stm32g4xx.h -> core_cm4.h)
 
 /*!< endpoint address */
 #define CDC_IN_EP  0x81
@@ -200,6 +201,11 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 }
 
 /* ========== USB批量输出回调 (主机->设备) ========== */
+__attribute__((weak)) void cdc_acm_data_rx_callback(uint8_t *data, uint32_t len)
+{
+    // 弱定义，供应用层重写
+}
+
 void usbd_cdc_acm_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     if (nbytes > 0) {
@@ -212,6 +218,9 @@ void usbd_cdc_acm_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
         }
         
         USB_LOG_DBG("Received %d bytes, buffered %ld bytes\r\n", nbytes, written);
+
+        // 调用接收回调
+        cdc_acm_data_rx_callback(usb_read_buffer, nbytes);
     }
     
     // 继续启动下一次USB接收
@@ -315,12 +324,20 @@ int cdc_acm_send_data(uint8_t busid, const uint8_t *data, uint32_t len)
         return -1;
     }
     
+    // 关中断保护（防止中断回调中的 Shell 打印与主循环打印冲突）
+    uint32_t flags = (uint32_t)__get_PRIMASK();
+    __disable_irq();
+
     // 写入发送环形缓冲区
     uint32_t written = chry_ringbuffer_write(&tx_ringbuf, (void *)data, len);
     
     // 立即尝试发送
     cdc_acm_try_send(busid);
     
+    if (!flags) {
+        __enable_irq();
+    }
+
     USB_LOG_INFO("Written %ld bytes\r\n", written);
     return (int)written;
 }
