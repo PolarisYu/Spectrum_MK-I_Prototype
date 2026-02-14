@@ -35,10 +35,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "cdc_acm_ringbuffer.h"
 #include "Segger_RTT.h"
 #include "shell.h"
 #include "shell_port.h"
+#include "ak4493.h"
+#include "njw1195a.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,7 +62,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+AK4493_HandleTypeDef hak4493;
+NJW1195A_HandleTypeDef hnjw;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,10 +79,10 @@ void SystemClock_Config(void);
   * @brief USB Log (Retargets the C library printf function to the USART)
   */
 #if defined(__CC_ARM)      // Keil
-int fputc(int ch,FILE *f)
+int fputc(int ch, FILE *f)
 {
-  SEGGER_RTT_Write(0, ptr, len);
-  return len;
+  SEGGER_RTT_Write(0, (const char *)&ch, 1);
+  return ch;
 }
 #elif defined(__GNUC__)   // GCC
 int _write(int fd, char *ptr, int len)  
@@ -141,6 +145,38 @@ int main(void)
 
   cdc_acm_init(u_busid, USB_BASE);
   userShellInit();
+
+  // 1. 配置 I2C 句柄
+  hak4493.hi2c = &hi2c2;
+  
+  // 2. 配置 I2C 地址 (默认是 0x26)
+  hak4493.DevAddress = AK4493_DEFAULT_ADDR;
+  
+  // 3. 配置 PDN 复位引脚 (根据 main.h 中的定义)
+  hak4493.PDN_Port = DAC_PDN_GPIO_Port;
+  hak4493.PDN_Pin = DAC_PDN_Pin;
+
+    // 4. 初始化 DAC
+  if (AK4493_Init(&hak4493) != HAL_OK)
+  {
+      // 初始化失败处理，例如打印错误日志
+      printf("AK4493 Init Failed!\r\n");
+      Error_Handler();
+  }
+
+  // 5. 设置初始音量 (0-255)
+  AK4493_SetVolume(&hak4493, 2);
+
+  // 初始化 NJW1195A
+  hnjw.hspi = &hspi2; // 使用 SPI2
+  hnjw.LatchPort = SPI2_LATCH_GPIO_Port; // PB12 (来自 main.h)
+  hnjw.LatchPin = SPI2_LATCH_Pin;
+  
+  NJW1195A_Init(&hnjw);
+
+  // 设置初始音量 (例如设置为 -10dB)
+  // 10dB / 0.5dB = 20 (0x14)
+  NJW1195A_SetAllLevels_DMA(&hnjw, 0x14);
 
   // HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
   
@@ -207,7 +243,13 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  if (hspi->Instance == SPI2) // 确认是连接 NJW1195A 的 SPI 接口
+  {
+    NJW1195A_TxCpltCallback(&hnjw);
+  }
+}
 /* USER CODE END 4 */
 
 /**

@@ -41,6 +41,8 @@ targets:
         - APP/CDC_ACM
         - APP/LetterShell
         - Drivers/SeggerRTT
+        - Drivers/AK4493
+        - Drivers/NJW1195A
       libList: []
     excludeList: []
     toolchain: GCC
