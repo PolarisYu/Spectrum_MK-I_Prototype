@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "stm32g4xx_hal.h"
+#include <stdio.h>
 
 /* Register Map */
 #define NJW1195A_REG_VOL_CH1    0x00
@@ -25,6 +26,8 @@ typedef struct {
     SPI_HandleTypeDef *hspi;
     GPIO_TypeDef *LatchPort;
     uint16_t LatchPin;
+    GPIO_TypeDef *PW_EN_Port;
+    uint16_t PW_EN_Pin;
     volatile uint8_t TxBuffer[2]; /* Buffer for DMA */
     volatile uint8_t IsBusy;      /* Busy Flag */
 } NJW1195A_HandleTypeDef;

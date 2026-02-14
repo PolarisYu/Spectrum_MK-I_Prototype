@@ -12,7 +12,7 @@ uint8_t AK4493_ReadReg(AK4493_HandleTypeDef *hak, uint8_t reg) {
     return val;
 }
 
-/* Helper to update a specific bit */
+/* Update a specific bit */
 static HAL_StatusTypeDef AK4493_UpdateBit(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t mask, uint8_t value) {
     uint8_t current = AK4493_ReadReg(hak, reg);
     if (value) {
@@ -23,17 +23,40 @@ static HAL_StatusTypeDef AK4493_UpdateBit(AK4493_HandleTypeDef *hak, uint8_t reg
     return AK4493_WriteReg(hak, reg, current);
 }
 
-/* Initialize the AK4493 */
-HAL_StatusTypeDef AK4493_Init(AK4493_HandleTypeDef *hak) {
+/* Power On Initialization */
+HAL_StatusTypeDef AK4493_PowerOn(AK4493_HandleTypeDef *hak) {
+    /* 1. Pull High DAC_PW_EN */
+    if (hak->PW_EN_Port != NULL) {
+        HAL_GPIO_WritePin(hak->PW_EN_Port, hak->PW_EN_Pin, GPIO_PIN_SET);
+        printf("DAC_PW_EN Set High\r\n");
+    }
+    
+    /* 2. Wait 20ms for power stabilization */
+    HAL_Delay(20);
+    printf("DAC_PW_EN Power Stabilized\r\n");
+    
+    /* 3. Perform Hardware Reset (PDN Low -> High) */
+    if (hak->PDN_Port != NULL) {
+        HAL_GPIO_WritePin(hak->PDN_Port, hak->PDN_Pin, GPIO_PIN_RESET);
+        HAL_Delay(20); // Hold reset for 20ms
+        HAL_GPIO_WritePin(hak->PDN_Port, hak->PDN_Pin, GPIO_PIN_SET);
+        HAL_Delay(20); // Wait after release reset
+        printf("AK4493 PDN Released\r\n");
+    }
+    
+    return HAL_OK;
+}
+
+/* Register Initialization (Must be called after I2S clock is stable) */
+HAL_StatusTypeDef AK4493_RegInit(AK4493_HandleTypeDef *hak) {
     if (hak == NULL || hak->hi2c == NULL) {
+        
         return HAL_ERROR;
     }
 
-    /* Hardware Reset */
-    AK4493_Reset(hak);
-
     /* Check communication */
     if (HAL_I2C_IsDeviceReady(hak->hi2c, hak->DevAddress, 2, 100) != HAL_OK) {
+        printf("AK4493 I2C Communication Failed. Check Device Address and I2C Bus.\r\n");
         return HAL_ERROR;
     }
 
@@ -59,6 +82,23 @@ HAL_StatusTypeDef AK4493_Init(AK4493_HandleTypeDef *hak) {
     AK4493_UpdateBit(hak, AK4493_REG_02_CONTROL3, (1 << 3), 0);
 
     return HAL_OK;
+}
+
+/* Initialize the AK4493 (Legacy/Full Init) */
+HAL_StatusTypeDef AK4493_Init(AK4493_HandleTypeDef *hak) {
+    if (hak == NULL || hak->hi2c == NULL) {
+        return HAL_ERROR;
+    }
+
+    /* Hardware Reset / Power On */
+    // Note: If using split init, call AK4493_PowerOn() and AK4493_RegInit() separately.
+    AK4493_Reset(hak);
+
+    /* Check communication */
+    /* This check is also inside RegInit, but we can keep it here or just call RegInit */
+    
+    /* Initialize Registers */
+    return AK4493_RegInit(hak);
 }
 
 /* Perform Hardware Reset */

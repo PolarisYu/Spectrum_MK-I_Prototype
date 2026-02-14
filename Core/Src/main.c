@@ -64,6 +64,7 @@
 /* USER CODE BEGIN PV */
 AK4493_HandleTypeDef hak4493;
 NJW1195A_HandleTypeDef hnjw;
+volatile uint8_t ak4493_init_needed = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,6 +75,46 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/**
+ * @brief Scans the I2C bus for devices and prints the results via SEGGER RTT.
+ * @param hi2c: Pointer to a I2C_HandleTypeDef structure that contains
+ * the configuration information for the specified I2C.
+ */
+void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
+    HAL_StatusTypeDef status;
+    uint8_t i;
+    uint8_t found_count = 0;
+
+    printf("\r\n--- Starting I2C Bus Scan ---\r\n");
+    printf("     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n");
+
+    for (i = 0; i < 128; i++) {
+        // Print row header every 16 addresses
+        if (i % 16 == 0) {
+            printf("%02X: ", i);
+        }
+
+        /* * Use HAL_I2C_IsDeviceReady to probe the address.
+         * Note: The address is shifted left by 1 for the 8-bit format.
+         */
+        status = HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(i << 1), 3, 10);
+
+        if (status == HAL_OK) {
+            printf("%02X ", i); // Device found, print 7-bit hex address
+            found_count++;
+        } else {
+            printf("-- "); // No response
+        }
+
+        // New line after every 16 probes
+        if (i % 16 == 15) {
+            printf("\r\n");
+        }
+    }
+
+    printf("--- Scan Finished. Found %d device(s) ---\r\n\r\n", found_count);
+}
 
 /**
   * @brief USB Log (Retargets the C library printf function to the USART)
@@ -155,22 +196,22 @@ int main(void)
   // 3. 配置 PDN 复位引脚 (根据 main.h 中的定义)
   hak4493.PDN_Port = DAC_PDN_GPIO_Port;
   hak4493.PDN_Pin = DAC_PDN_Pin;
+  hak4493.PW_EN_Port = DAC_PW_EN_GPIO_Port;
+  hak4493.PW_EN_Pin = DAC_PW_EN_Pin;
 
-    // 4. 初始化 DAC
-  if (AK4493_Init(&hak4493) != HAL_OK)
-  {
-      // 初始化失败处理，例如打印错误日志
-      printf("AK4493 Init Failed!\r\n");
-      Error_Handler();
-  }
+    // 4. 初始化 DAC (Power On only)
+  AK4493_PowerOn(&hak4493);
+  printf("AK4493 Power On. Waiting for USB/I2S...\r\n");
 
-  // 5. 设置初始音量 (0-255)
-  AK4493_SetVolume(&hak4493, 2);
+  /* Register Init is now handled in EXTI callback and main loop */
 
-  // 初始化 NJW1195A
+  // Initialize NJW1195A
   hnjw.hspi = &hspi2; // 使用 SPI2
   hnjw.LatchPort = SPI2_LATCH_GPIO_Port; // PB12 (来自 main.h)
   hnjw.LatchPin = SPI2_LATCH_Pin;
+
+  hnjw.PW_EN_Port = AMP_PW_EN_GPIO_Port;
+  hnjw.PW_EN_Pin = AMP_PW_EN_Pin;
   
   NJW1195A_Init(&hnjw);
 
@@ -186,6 +227,33 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+      if (ak4493_init_needed) {
+          printf("AK4493 Init Request Detected. Waiting for clock...\r\n");
+          HAL_Delay(1000); // Initial wait for USB/I2S clock
+
+          // Scan I2C bus
+          I2C_ScanBus(hak4493.hi2c);
+
+          // Retry logic: Try 5 times
+          int i;
+          for (i = 0; i < 5; i++) {
+              printf("AK4493 Reg Init Attempt %d/5...\r\n", i + 1);
+              if (AK4493_RegInit(&hak4493) == HAL_OK) {
+                  printf("AK4493 Reg Init Success!\r\n");
+                  AK4493_SetVolume(&hak4493, 2);
+                  ak4493_init_needed = 0; 
+                  break; 
+              } else {
+                  printf("AK4493 Reg Init Failed. Retrying in 100ms...\r\n");
+                  HAL_Delay(100);
+              }
+          }
+
+          if (ak4493_init_needed) {
+              printf("AK4493 Init Failed after 5 attempts. Check I2S Clock/Connections.\r\n");
+              ak4493_init_needed = 0; // Clear flag
+          }
+      }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -243,6 +311,14 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if (GPIO_Pin == GPIO_PIN_2) // PB2 (USB/I2S Detected)
+  {
+      ak4493_init_needed = 1;
+  }
+}
+
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   if (hspi->Instance == SPI2) // 确认是连接 NJW1195A 的 SPI 接口

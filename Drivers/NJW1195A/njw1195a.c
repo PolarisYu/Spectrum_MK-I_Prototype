@@ -4,6 +4,24 @@
 HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
     if (hnjw == NULL || hnjw->LatchPort == NULL) return HAL_ERROR;
 
+    if (hnjw->PW_EN_Port != NULL) {
+        HAL_GPIO_WritePin(hnjw->PW_EN_Port, hnjw->PW_EN_Pin, GPIO_PIN_SET);
+        printf("AMP_PW_EN Set High\r\n");
+    }
+    
+    /* 2. Wait 20ms for power stabilization */
+    HAL_Delay(20);
+    printf("AMP_PW_EN Power Stabilized\r\n");
+    
+    /* 3. Perform Hardware Reset (PDN Low -> High) */
+    if (hnjw->PW_EN_Port != NULL) {
+        HAL_GPIO_WritePin(hnjw->PW_EN_Port, hnjw->PW_EN_Pin, GPIO_PIN_RESET);
+        HAL_Delay(20); // Hold reset for 20ms
+        HAL_GPIO_WritePin(hnjw->PW_EN_Port, hnjw->PW_EN_Pin, GPIO_PIN_SET);
+        HAL_Delay(20); // Wait after release reset
+        printf("NJW1195A Power On\r\n");
+    }
+
     /* Ensure Latch starts High */
     HAL_GPIO_WritePin(hnjw->LatchPort, hnjw->LatchPin, GPIO_PIN_SET);
     

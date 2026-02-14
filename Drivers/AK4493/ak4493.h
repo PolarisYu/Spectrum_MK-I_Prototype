@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "stm32g4xx_hal.h"
+#include <stdio.h>
 
 /* AK4493 I2C Address (7-bit 0x13 -> 8-bit 0x26) */
 #define AK4493_I2C_ADDR_0  (0x10 << 1) // CAD1=L, CAD0=L
@@ -61,10 +62,14 @@ typedef struct {
     uint16_t DevAddress;
     GPIO_TypeDef *PDN_Port;
     uint16_t PDN_Pin;
+    GPIO_TypeDef *PW_EN_Port;
+    uint16_t PW_EN_Pin;
 } AK4493_HandleTypeDef;
 
 /* Function Prototypes */
 HAL_StatusTypeDef AK4493_Init(AK4493_HandleTypeDef *hak);
+HAL_StatusTypeDef AK4493_PowerOn(AK4493_HandleTypeDef *hak);
+HAL_StatusTypeDef AK4493_RegInit(AK4493_HandleTypeDef *hak);
 HAL_StatusTypeDef AK4493_Reset(AK4493_HandleTypeDef *hak);
 HAL_StatusTypeDef AK4493_SetVolume(AK4493_HandleTypeDef *hak, uint8_t volume);
 HAL_StatusTypeDef AK4493_SetMute(AK4493_HandleTypeDef *hak, uint8_t enable);
