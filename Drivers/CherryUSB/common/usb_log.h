@@ -45,7 +45,7 @@
 #define usb_dbg_log_line(lvl, color_n, fmt, ...) \
     do {                                         \
         _USB_DBG_LOG_HDR(lvl, color_n);          \
-        CONFIG_USB_PRINTF(fmt, ##__VA_ARGS__);              \
+        CONFIG_USB_PRINTF(fmt, ##__VA_ARGS__);   \
         _USB_DBG_LOG_X_END;                      \
     } while (0)
 

@@ -8,12 +8,15 @@
 
 /* ================ USB common Configuration ================ */
 
+#include "SEGGER_RTT.h"
+
 #ifdef __RTTHREAD__
 #include <rtthread.h>
 
 #define CONFIG_USB_PRINTF(...) rt_kprintf(__VA_ARGS__)
 #else
-#define CONFIG_USB_PRINTF(...) printf(__VA_ARGS__)
+// #define CONFIG_USB_PRINTF(...) printf(__VA_ARGS__)
+#define CONFIG_USB_PRINTF(...) SEGGER_RTT_printf(0, __VA_ARGS__)
 #endif
 
 #ifndef CONFIG_USB_DBG_LEVEL
