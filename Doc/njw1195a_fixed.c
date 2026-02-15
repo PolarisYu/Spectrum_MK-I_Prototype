@@ -1,4 +1,4 @@
-#include "njw1195a.h"
+#include "njw1195a_fixed.h"
 
 /* Private helper function to send 16-bit control word */
 static HAL_StatusTypeDef NJW1195A_SendCommand(NJW1195A_HandleTypeDef *hnjw, uint8_t address, uint8_t data);
@@ -203,7 +203,7 @@ static HAL_StatusTypeDef NJW1195A_SendCommand_DMA(NJW1195A_HandleTypeDef *hnjw, 
 /* DMA Transfer Complete Callback */
 void NJW1195A_TxCpltCallback(NJW1195A_HandleTypeDef *hnjw) {
     /* Small delay for t4 (LATCH rise hold time) */
-    for (volatile int i = 0; i < 20; i++) __NOP();
+    for (volatile int i = 0; i < 500; i++) __NOP();
     
     /* 3. LATCH High (end of frame - apply settings) */
     HAL_GPIO_WritePin(hnjw->LatchPort, hnjw->LatchPin, GPIO_PIN_SET);
@@ -247,7 +247,6 @@ uint8_t NJW1195A_dBToRegister(float dB) {
         if (regValue < 0x01) regValue = 0x01;
         if (regValue > 0xFE) regValue = 0xFE;
         
-        printf("dB: %.2f, reg: 0x%02X\n", dB, regValue);
         return (uint8_t)regValue;
     }
 }

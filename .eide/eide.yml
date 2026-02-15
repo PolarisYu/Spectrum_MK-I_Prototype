@@ -90,5 +90,5 @@ targets:
           vendor: ST
         otherCmds: ""
         proType: 1
-        speed: 16000
+        speed: 32000
     uploader: JLink

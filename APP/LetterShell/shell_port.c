@@ -1,6 +1,8 @@
 #include "shell.h"
 #include "cdc_acm_ringbuffer.h"
 #include "main.h"
+#include "njw1195a.h"
+#include "ak4493.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -68,13 +70,13 @@ SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), he
 /**
  * @brief Set Power State
  * usage: power [device] [state]
- * devices: amp, dac, led
+ * devices: amp, dac
  * state: 0-off, 1-on
  */
 int setPower(int argc, char *argv[])
 {
     if (argc != 3) {
-        shellPrint(&shell, "usage: power [amp|dac|led] [0|1]\r\n");
+        shellPrint(&shell, "usage: power [amp|dac] [0|1]\r\n");
         return -1;
     }
 
@@ -90,10 +92,6 @@ int setPower(int argc, char *argv[])
         // DAC_PW_EN
         port = DAC_PW_EN_GPIO_Port;
         pin = DAC_PW_EN_Pin;
-    } else if (strcmp(argv[1], "led") == 0) {
-        // SYS_STATUS_LED
-        port = SYS_STATUS_LED_GPIO_Port;
-        pin = SYS_STATUS_LED_Pin;
     } else {
         shellPrint(&shell, "unknown device: %s\r\n", argv[1]);
         return -1;
@@ -107,3 +105,13 @@ int setPower(int argc, char *argv[])
     return 0;
 }
 SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), power, setPower, set power control);
+
+/**
+ * @brief Set NJW1195A Volume Level
+ * usage: vol [value]
+ * value: HEX
+ */
+void setVolLevel(void)
+{
+
+}

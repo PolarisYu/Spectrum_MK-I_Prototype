@@ -40,10 +40,6 @@ extern "C" {
 typedef struct {
     SPI_HandleTypeDef *hspi;
     
-    /* Power Enable pin (required) */
-    GPIO_TypeDef *PW_EN_Port;
-    uint16_t PW_EN_Pin;
-
     /* LATCH pin (required) */
     GPIO_TypeDef *LatchPort;
     uint16_t LatchPin;

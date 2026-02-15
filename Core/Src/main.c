@@ -215,9 +215,9 @@ int main(void)
   
   NJW1195A_Init(&hnjw);
 
-  // 设置初始音量 (例如设置为 -10dB)
+  // Set initial volume to -10dB
   // 10dB / 0.5dB = 20 (0x14)
-  NJW1195A_SetAllLevels_DMA(&hnjw, 0x14);
+  NJW1195A_SetVolume_DMA(&hnjw, 0x01, NJW1195A_dBToRegister(-10.0));
 
   // HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
   
@@ -302,7 +302,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {

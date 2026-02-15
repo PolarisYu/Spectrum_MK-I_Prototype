@@ -22,7 +22,15 @@
             "*.c++": "cpp",
             "*.cpp": "cpp",
             "*.cxx": "cpp",
-            "*.cc": "cpp"
+            "*.cc": "cpp",
+            "bit": "c",
+            "compare": "c",
+            "cstdlib": "c",
+            "cmath": "c",
+            "new": "c",
+            "type_traits": "c",
+            "typeinfo": "c",
+            "limits": "c"
         },
         "[yaml]": {
             "editor.insertSpaces": true,
