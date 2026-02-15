@@ -43,6 +43,9 @@ targets:
         - Drivers/SeggerRTT
         - Drivers/AK4493
         - Drivers/NJW1195A
+        - Drivers/CT7302
+        - Drivers/CH224Q
+        - APP/PDO
       libList: []
     excludeList: []
     toolchain: GCC

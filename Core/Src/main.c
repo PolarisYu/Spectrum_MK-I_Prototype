@@ -41,6 +41,7 @@
 #include "shell_port.h"
 #include "ak4493.h"
 #include "njw1195a.h"
+#include "ct7302.h"
 
 /* Debug Tag for AK4493 */
 #define USB_DBG_TAG "SYS"
@@ -72,6 +73,13 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define u_busid 0
+
+// 设置系统状态灯亮度 (0-1000)
+#define SET_STATUS_LED_BRIGHTNESS(x)  __HAL_TIM_SET_COMPARE(&htim15, TIM_CHANNEL_1, (x))
+
+// 设置数据灯亮度 (0-1000)
+#define SET_DATA_LED_BRIGHTNESS(x)    __HAL_TIM_SET_COMPARE(&htim15, TIM_CHANNEL_2, (x))
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -83,8 +91,9 @@
 
 /* USER CODE BEGIN PV */
 AK4493_HandleTypeDef hak4493;
-NJW1195A_HandleTypeDef hnjw;
 volatile uint8_t ak4493_init_needed = 0;
+NJW1195A_HandleTypeDef hnjw;
+CT7302_HandleTypeDef hct;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -95,6 +104,24 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/**
+  * @brief USB Log (Retargets the C library printf function to the USART)
+  */
+#if defined(__CC_ARM)      // Keil
+int fputc(int ch, FILE *f)
+{
+  SEGGER_RTT_Write(0, (const char *)&ch, 1);
+  return ch;
+}
+#elif defined(__GNUC__)   // GCC
+int _write(int fd, char *ptr, int len)  
+{  
+  SEGGER_RTT_Write(0, ptr, len);
+  return len;
+  // HAL_Delay();
+}
+#endif
 
 /**
  * @brief Scans the I2C bus for devices and prints the results via SEGGER RTT.
@@ -137,22 +164,35 @@ void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
 }
 
 /**
-  * @brief USB Log (Retargets the C library printf function to the USART)
-  */
-#if defined(__CC_ARM)      // Keil
-int fputc(int ch, FILE *f)
-{
-  SEGGER_RTT_Write(0, (const char *)&ch, 1);
-  return ch;
+ * @brief Process the status LED breathing effect.
+ * @details This function controls the brightness of the status LED to simulate
+ * a breathing effect. The brightness increases and decreases smoothly, creating
+ * a natural breathing feel.
+ */
+void Process_Status_LED_Breathing(void) {
+    static uint32_t last_tick = 0;
+    static int16_t brightness = 0;
+    static int8_t direction = 10; // 亮度变化步进
+
+    // 每 10ms 更新一次亮度，产生平滑动画
+    if (HAL_GetTick() - last_tick > 10) {
+        last_tick = HAL_GetTick();
+
+        brightness += direction;
+
+        // 到达最亮或最暗时反转方向
+        if (brightness >= 1000) {
+            brightness = 1000;
+            direction = -10; // 变暗
+        } else if (brightness <= 0) {
+            brightness = 0;
+            direction = 10;  // 变亮
+            // 可在此处添加额外延时，让灯灭一小会儿再亮，模拟人的呼吸停顿
+        }
+
+        SET_STATUS_LED_BRIGHTNESS(brightness);
+    }
 }
-#elif defined(__GNUC__)   // GCC
-int _write(int fd, char *ptr, int len)  
-{  
-  SEGGER_RTT_Write(0, ptr, len);
-  return len;
-  // HAL_Delay();
-}
-#endif
 
 /* USER CODE END 0 */
 
@@ -203,8 +243,15 @@ int main(void)
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
 
+  /* 启动 TIM15 的两个通道 */
+  HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_2);
+
   cdc_acm_init(u_busid, USB_BASE);
   userShellInit();
+
+  hct.hi2c = &hi2c3;
+  CT7302_Init(&hct);
 
   // 1. 配置 I2C 句柄
   hak4493.hi2c = &hi2c2;
@@ -247,6 +294,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+      /* 处理系统呼吸灯 */
+      Process_Status_LED_Breathing();
+
       if (ak4493_init_needed) {
           USB_LOG_INFO("AK4493 Init Request Detected. Waiting for clock...\r\n");
           HAL_Delay(1000); // Initial wait for USB/I2S clock
@@ -261,8 +311,8 @@ int main(void)
               if (AK4493_RegInit(&hak4493) == HAL_OK) {
                   USB_LOG_INFO("AK4493 Reg Init Success!\r\n");
                   AK4493_SetVolume(&hak4493, 2);
-                  ak4493_init_needed = 0; 
-                  break; 
+                  ak4493_init_needed = 0;
+                  break;
               } else {
                   USB_LOG_INFO("AK4493 Reg Init Failed. Retrying in 100ms...\r\n");
                   HAL_Delay(100);

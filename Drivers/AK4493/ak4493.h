@@ -1,5 +1,5 @@
-#ifndef __AK4493_IMPROVED_H__
-#define __AK4493_IMPROVED_H__
+#ifndef __AK4493_H__
+#define __AK4493_H__
 
 #ifdef __cplusplus
 extern "C" {
