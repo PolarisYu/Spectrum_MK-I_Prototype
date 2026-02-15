@@ -6,6 +6,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern NJW1195A_HandleTypeDef hnjw;
+extern AK4493_HandleTypeDef hak;
+
 #define SHELL_USB_BUSID 0
 
 Shell shell;
@@ -107,11 +110,67 @@ int setPower(int argc, char *argv[])
 SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), power, setPower, set power control);
 
 /**
- * @brief Set NJW1195A Volume Level
- * usage: vol [value]
- * value: HEX
+ * @brief Set NJW1195A Volume
+ * usage: vol [channel|all] [value]
+ * channel: 1-4 or 'all'
+ * value: -95.0 to +31.5 (dB) or 0x00-0xFF (Register Hex)
  */
-void setVolLevel(void)
-{
+// int setChannelVolume(int argc, char *argv[])
+// {
+//     if (argc < 3) {
+//         shellPrint(&shell, "Usage: vol [ch|all] [value]\r\n");
+//         shellPrint(&shell, "  ch: 1-4 or 'all'\r\n");
+//         shellPrint(&shell, "  value: dB (-95.0 to 31.5) or Hex (0x00-0xFF)\r\n");
+//         return -1;
+//     }
 
-}
+//     uint8_t regValue = 0;
+//     float dbValue = 0.0f;
+//     int isDb = 1;
+
+//     // Check if value is hex
+//     if (strstr(argv[2], "0x") || strstr(argv[2], "0X")) {
+//         regValue = (uint8_t)strtol(argv[2], NULL, 16);
+//         isDb = 0;
+//     } else {
+//         dbValue = strtof(argv[2], NULL);
+//         regValue = NJW1195A_dBToRegister(dbValue);
+//     }
+
+//     if (strcmp(argv[1], "all") == 0) {
+//         // Set all channels
+//         if (NJW1195A_SetAllVolumes(&hnjw, regValue) == HAL_OK) {
+//             if (isDb)
+//                 shellPrint(&shell, "Set ALL channels to %.1f dB (0x%02X)\r\n", dbValue, regValue);
+//             else
+//                 shellPrint(&shell, "Set ALL channels to 0x%02X\r\n", regValue);
+//         } else if (NJW1195A_SetAllVolumes(&hnjw, regValue) == HAL_BUSY) {
+//             shellPrint(&shell, "Failed to set volume Busy\r\n");    
+//         } else {
+//             shellPrint(&shell, "Failed to set volume Error\r\n");
+//         }
+//     } else {
+//         // Set specific channel
+//         int ch = atoi(argv[1]);
+//         if (ch < 1 || ch > 4) {
+//             shellPrint(&shell, "Invalid channel: %d (must be 1-4)\r\n", ch);
+//             return -1;
+//         }
+
+//         // Map 1-4 to 0-3 (Driver defines CH1 as 0x00)
+//         uint8_t channelReg = ch - 1;
+
+//         if (NJW1195A_SetVolume_DMA(&hnjw, channelReg, regValue) == HAL_OK) {
+//             if (isDb)
+//                 shellPrint(&shell, "Set CH%d to %.1f dB (0x%02X) via DMA\r\n", ch, dbValue, regValue);
+//             else
+//                 shellPrint(&shell, "Set CH%d to 0x%02X via DMA\r\n", ch, regValue);
+//         } else {
+//             shellPrint(&shell, "Failed to set volume (Busy/Error)\r\n");
+//         }
+//     }
+
+//     return 0;
+// }
+// SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), vol, setChannelVolume, set volume control);
+

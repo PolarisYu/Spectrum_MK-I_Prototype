@@ -29,7 +29,6 @@
 #include "sai.h"
 #include "spi.h"
 #include "tim.h"
-#include "usart.h"
 #include "usb.h"
 #include "gpio.h"
 
@@ -42,6 +41,27 @@
 #include "shell_port.h"
 #include "ak4493.h"
 #include "njw1195a.h"
+
+/* Debug Tag for AK4493 */
+#define USB_DBG_TAG "SYS"
+
+/* Include usb_config.h if available to get debug levels */
+#if __has_include("usb_config.h")
+#include "usb_config.h"
+#endif
+
+/* Ensure CONFIG_USB_PRINTF is defined if not provided by usb_config.h */
+#ifndef CONFIG_USB_PRINTF
+#include <stdio.h>
+#define CONFIG_USB_PRINTF printf
+#endif
+
+#include "usb_log.h"
+
+#ifndef CONFIG_USB_DBG_LEVEL
+#define CONFIG_USB_DBG_LEVEL USB_DBG_INFO
+#endif
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,13 +106,13 @@ void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
     uint8_t i;
     uint8_t found_count = 0;
 
-    printf("\r\n--- Starting I2C Bus Scan ---\r\n");
-    printf("     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n");
+    USB_LOG_INFO("\r\n--- Starting I2C Bus Scan ---\r\n");
+    USB_LOG_INFO("     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n");
 
     for (i = 0; i < 128; i++) {
         // Print row header every 16 addresses
         if (i % 16 == 0) {
-            printf("%02X: ", i);
+            USB_LOG_INFO("%02X: ", i);
         }
 
         /* * Use HAL_I2C_IsDeviceReady to probe the address.
@@ -101,19 +121,19 @@ void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
         status = HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(i << 1), 3, 10);
 
         if (status == HAL_OK) {
-            printf("%02X ", i); // Device found, print 7-bit hex address
+            USB_LOG_INFO("%02X ", i); // Device found, print 7-bit hex address
             found_count++;
         } else {
-            printf("-- "); // No response
+            USB_LOG_INFO("-- "); // No response
         }
 
         // New line after every 16 probes
         if (i % 16 == 15) {
-            printf("\r\n");
+            USB_LOG_INFO("\r\n");
         }
     }
 
-    printf("--- Scan Finished. Found %d device(s) ---\r\n\r\n", found_count);
+    USB_LOG_INFO("--- Scan Finished. Found %d device(s) ---\r\n\r\n", found_count);
 }
 
 /**
@@ -181,7 +201,6 @@ int main(void)
   MX_FMAC_Init();
   MX_SPI2_Init();
   MX_I2C3_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   cdc_acm_init(u_busid, USB_BASE);
@@ -199,11 +218,11 @@ int main(void)
   hak4493.PW_EN_Port = DAC_PW_EN_GPIO_Port;
   hak4493.PW_EN_Pin = DAC_PW_EN_Pin;
 
-    // 4. 初始化 DAC (Power On only)
+  // 4. 初始化 DAC (Power On only)
   AK4493_PowerOn(&hak4493);
-  printf("AK4493 Power On. Waiting for USB/I2S...\r\n");
+  USB_LOG_INFO("AK4493 Power On. Waiting for USB/I2S...\r\n");
 
-  /* Register Init is now handled in EXTI callback and main loop */
+  /* AK4493 Register Init is now handled in EXTI callback and main loop */
 
   // Initialize NJW1195A
   hnjw.hspi = &hspi2; // 使用 SPI2
@@ -217,7 +236,8 @@ int main(void)
 
   // Set initial volume to -10dB
   // 10dB / 0.5dB = 20 (0x14)
-  NJW1195A_SetVolume_DMA(&hnjw, 0x01, NJW1195A_dBToRegister(-10.0));
+  // NJW1195A_SetVolume_DMA(&hnjw, 0x01, NJW1195A_dBToRegister(-10.0));
+  NJW1195A_SetAllVolumes(&hnjw, NJW1195A_dBToRegister(-10.0));
 
   // HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
   
@@ -228,7 +248,7 @@ int main(void)
   while (1)
   {
       if (ak4493_init_needed) {
-          printf("AK4493 Init Request Detected. Waiting for clock...\r\n");
+          USB_LOG_INFO("AK4493 Init Request Detected. Waiting for clock...\r\n");
           HAL_Delay(1000); // Initial wait for USB/I2S clock
 
           // Scan I2C bus
@@ -237,20 +257,20 @@ int main(void)
           // Retry logic: Try 5 times
           int i;
           for (i = 0; i < 5; i++) {
-              printf("AK4493 Reg Init Attempt %d/5...\r\n", i + 1);
+              USB_LOG_INFO("AK4493 Reg Init Attempt %d/5...\r\n", i + 1);
               if (AK4493_RegInit(&hak4493) == HAL_OK) {
-                  printf("AK4493 Reg Init Success!\r\n");
+                  USB_LOG_INFO("AK4493 Reg Init Success!\r\n");
                   AK4493_SetVolume(&hak4493, 2);
                   ak4493_init_needed = 0; 
                   break; 
               } else {
-                  printf("AK4493 Reg Init Failed. Retrying in 100ms...\r\n");
+                  USB_LOG_INFO("AK4493 Reg Init Failed. Retrying in 100ms...\r\n");
                   HAL_Delay(100);
               }
           }
 
           if (ak4493_init_needed) {
-              printf("AK4493 Init Failed after 5 attempts. Check I2S Clock/Connections.\r\n");
+              USB_LOG_INFO("AK4493 Init Failed after 5 attempts. Check I2S Clock/Connections.\r\n");
               ak4493_init_needed = 0; // Clear flag
           }
       }
@@ -301,8 +321,8 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {

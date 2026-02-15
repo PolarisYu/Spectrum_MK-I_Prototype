@@ -1,5 +1,25 @@
 #include "njw1195a.h"
 
+/* Debug Tag for NJW1195A */
+#define USB_DBG_TAG "VOL"
+
+/* Include usb_config.h if available to get debug levels */
+#if __has_include("usb_config.h")
+#include "usb_config.h"
+#endif
+
+/* Ensure CONFIG_USB_PRINTF is defined if not provided by usb_config.h */
+#ifndef CONFIG_USB_PRINTF
+#include <stdio.h>
+#define CONFIG_USB_PRINTF printf
+#endif
+
+#include "usb_log.h"
+
+#ifndef CONFIG_USB_DBG_LEVEL
+#define CONFIG_USB_DBG_LEVEL USB_DBG_INFO
+#endif
+
 /* Private helper function to send 16-bit control word */
 static HAL_StatusTypeDef NJW1195A_SendCommand(NJW1195A_HandleTypeDef *hnjw, uint8_t address, uint8_t data);
 static HAL_StatusTypeDef NJW1195A_SendCommand_DMA(NJW1195A_HandleTypeDef *hnjw, uint8_t address, uint8_t data);
@@ -10,6 +30,9 @@ HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
         return HAL_ERROR;
     }
     
+    /* Power On */
+    HAL_GPIO_WritePin(hnjw->PW_EN_Port, hnjw->PW_EN_Pin, GPIO_PIN_SET);
+
     /* Ensure LATCH starts HIGH (idle state) */
     HAL_GPIO_WritePin(hnjw->LatchPort, hnjw->LatchPin, GPIO_PIN_SET);
     
@@ -29,7 +52,7 @@ HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
     hnjw->IsBusy = 0;
     hnjw->QueuedCommands = 0;
     
-    printf("NJW1195A Initialized (Chip Address: 0x%01X)\r\n", hnjw->ChipAddress);
+    USB_LOG_INFO("NJW1195A Initialized (Chip Address: 0x%01X)\r\n", hnjw->ChipAddress);
     
     /* Configure initial state: All channels muted, Input 1 selected */
     /* Note: Datasheet says initial condition is MUTE (0xFF for volume registers) */
@@ -49,7 +72,7 @@ HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
     NJW1195A_SetInput(hnjw, NJW1195A_INPUT_1, NJW1195A_INPUT_1, 
                              NJW1195A_INPUT_1, NJW1195A_INPUT_1);
     
-    printf("NJW1195A Initial Configuration Complete\r\n");
+    USB_LOG_INFO("NJW1195A Initial Configuration Complete\r\n");
     
     return HAL_OK;
 }
@@ -247,7 +270,7 @@ uint8_t NJW1195A_dBToRegister(float dB) {
         if (regValue < 0x01) regValue = 0x01;
         if (regValue > 0xFE) regValue = 0xFE;
         
-        printf("dB: %.2f, reg: 0x%02X\n", dB, regValue);
+        USB_LOG_INFO("dB: %.1f, reg: 0x%02X\n", dB, regValue);
         return (uint8_t)regValue;
     }
 }
