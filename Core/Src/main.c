@@ -133,7 +133,7 @@ void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
     uint8_t i;
     uint8_t found_count = 0;
 
-    USB_LOG_INFO("\r\n--- Starting I2C Bus Scan ---\r\n");
+    USB_LOG_INFO("--- Starting I2C Bus Scan ---\r\n");
     USB_LOG_INFO("     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n");
 
     for (i = 0; i < 128; i++) {
@@ -160,7 +160,7 @@ void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
         }
     }
 
-    USB_LOG_INFO("--- Scan Finished. Found %d device(s) ---\r\n\r\n", found_count);
+    USB_LOG_INFO("--- Scan Finished. Found %d device(s) ---\n", found_count);
 }
 
 /**
@@ -271,6 +271,8 @@ int main(void)
 
   /* AK4493 Register Init is now handled in EXTI callback and main loop */
 
+  HAL_Delay(1000);
+
   // Initialize NJW1195A
   hnjw.hspi = &hspi2; // 使用 SPI2
   hnjw.LatchPort = SPI2_LATCH_GPIO_Port; // PB12 (来自 main.h)
@@ -279,7 +281,7 @@ int main(void)
   hnjw.PW_EN_Port = AMP_PW_EN_GPIO_Port;
   hnjw.PW_EN_Pin = AMP_PW_EN_Pin;
   
-  NJW1195A_Init(&hnjw);
+  // NJW1195A_Init(&hnjw);
 
   // Set initial volume to -10dB
   // 10dB / 0.5dB = 20 (0x14)
@@ -302,7 +304,7 @@ int main(void)
           HAL_Delay(1000); // Initial wait for USB/I2S clock
 
           // Scan I2C bus
-          I2C_ScanBus(hak4493.hi2c);
+          // I2C_ScanBus(hak4493.hi2c);
 
           // Retry logic: Try 5 times
           int i;
@@ -310,7 +312,17 @@ int main(void)
               USB_LOG_INFO("AK4493 Reg Init Attempt %d/5...\r\n", i + 1);
               if (AK4493_RegInit(&hak4493) == HAL_OK) {
                   USB_LOG_INFO("AK4493 Reg Init Success!\r\n");
-                  AK4493_SetVolume(&hak4493, 2);
+                  HAL_Delay(10);
+                  AK4493_SetVolume_dB(&hak4493, -40.0);  // 从 -40dB 开始
+                  AK4493_SetMute(&hak4493, 0);           // 解除静音
+                  HAL_Delay(100);
+                  // 2. 逐步增加音量
+                  AK4493_SetVolume_dB(&hak4493, -20.0);  // -20dB
+                  HAL_Delay(50);
+                  AK4493_SetVolume_dB(&hak4493, -10.0);  // -10dB
+                  HAL_Delay(50);
+                  AK4493_SetVolume_dB(&hak4493, 0.0);    // 0dB (最大)
+                  USB_LOG_INFO("AK4493 Volume ramped to 0dB (Maximum)\r\n");
                   ak4493_init_needed = 0;
                   break;
               } else {

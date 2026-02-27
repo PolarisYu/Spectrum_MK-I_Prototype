@@ -82,7 +82,7 @@ HAL_StatusTypeDef AK4493_PowerOn(AK4493_HandleTypeDef *hak) {
         HAL_GPIO_WritePin(hak->PDN_Port, hak->PDN_Pin, GPIO_PIN_RESET);
     }
     
-    HAL_Delay(20);  // Wait for power supplies to stabilize
+    HAL_Delay(500);  // Wait for power supplies to stabilize
     USB_LOG_INFO("Power supply stabilized\r\n");
     
     /* Step 4: Release PDN (datasheet: PDN must be LOW for ≥150ns, we use 20ms to be safe) */
