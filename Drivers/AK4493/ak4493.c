@@ -22,7 +22,11 @@
 
 /* Helper to write a register */
 HAL_StatusTypeDef AK4493_WriteReg(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t val) {
-    return HAL_I2C_Mem_Write(hak->hi2c, hak->DevAddress, reg, I2C_MEMADD_SIZE_8BIT, &val, 1, 100);
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(hak->hi2c, hak->DevAddress, reg, I2C_MEMADD_SIZE_8BIT, &val, 1, 100);
+    if (status == HAL_OK && reg < AK4493_NUM_REGS) {
+        hak->Regs[reg] = val; // 更新本地缓存
+    }
+    return status;
 }
 
 /* Helper to write and verify a register */
@@ -126,9 +130,9 @@ HAL_StatusTypeDef AK4493_RegInit(AK4493_HandleTypeDef *hak) {
      * Bit 6 (ECS/EXDF) = 0 → Internal filter
      * Bit 5-4 (TDM) = 0 → Normal mode
      * Bit 3-1 (DIF) = 111 → 32-bit I2S format
-     * Bit 0 (RSTN) = 1 → Normal operation
+     * Bit 0 (RSTN) = 0 → Reset state
      */
-    AK4493_WriteReg(hak, AK4493_REG_00_CONTROL1, 0x8F);
+    AK4493_WriteReg(hak, AK4493_REG_00_CONTROL1, 0x8E);
     USB_LOG_INFO("Control 1: Auto clock, 32-bit I2S, normal operation\r\n");
     
     /* ===== Control 2 (0x01): Soft mute and filters ===== */
@@ -163,12 +167,15 @@ HAL_StatusTypeDef AK4493_RegInit(AK4493_HandleTypeDef *hak) {
     /* ===== Control 5 (0x07): Gain control ===== */
     /* 0x02 = GC[2:0] = 001 → ±3.75Vpp output (higher gain mode) */
     /* 0x00 = GC[2:0] = 000 → ±2.8Vpp output (lower gain mode) */
-    AK4493_WriteReg(hak, AK4493_REG_07_CONTROL5, 0x02);
+    AK4493_WriteReg(hak, AK4493_REG_07_CONTROL5, 0x08);
     USB_LOG_INFO("Control 5: Gain set to ±3.75Vpp (high gain mode)\r\n");
     
     /* ===== Sound Control (0x08): Sound quality adjustment ===== */
     /* 0x00 = Default sound */
     AK4493_WriteReg(hak, AK4493_REG_08_SOUND_CONTROL, 0x00);
+
+    /* ===== Reset (0x00): Release reset state ===== */
+    AK4493_UpdateBit(hak, AK4493_REG_00_CONTROL1, AK4493_RSTN, 1);
     
     USB_LOG_INFO("AK4493 initialization complete!\r\n");
     USB_LOG_INFO("   Format: 32-bit I2S\r\n");
@@ -355,12 +362,15 @@ HAL_StatusTypeDef AK4493_SetAudioFormat(AK4493_HandleTypeDef *hak, AK4493_AudioF
 /* Set Output Gain */
 HAL_StatusTypeDef AK4493_SetGain(AK4493_HandleTypeDef *hak, AK4493_GainTypeDef gain) {
     /* GC[2:0] are bits 3:1 of Control 5 (0x07) */
-    /* GC=001 (0x02) → ±3.75Vpp, GC=000 (0x00) → ±2.8Vpp */
-    uint8_t gc_value = (gain == AK4493_GAIN_3_75Vpp) ? 0x02 : 0x00;
-    
+    /* GC=001 (0x08) → ±3.75Vpp, GC=000 (0x00) → ±2.8Vpp */
     uint8_t current = AK4493_ReadReg(hak, AK4493_REG_07_CONTROL5);
-    current &= ~(0b111 << 1);  // Clear GC bits
-    current |= gc_value;
+    current &= ~(0b111 << 1);  // 清除 GC[2:0] 位 (Bit 3,2,1)
+    
+    if (gain == AK4493_GAIN_3_75Vpp) {
+        current |= (1 << 3);   // 设置 GC2=1 (即 0x08)
+    } else {
+        current |= 0x00;       // 设置 GC[2:0]=000 (2.8Vpp)
+    }
     
     return AK4493_WriteReg(hak, AK4493_REG_07_CONTROL5, current);
 }
@@ -382,35 +392,28 @@ HAL_StatusTypeDef AK4493_SetMonoMode(AK4493_HandleTypeDef *hak, uint8_t enable) 
 
 /* Helper: Convert dB to attenuation register value
  * Input: -127.0 to 0.0 dB (or -128.0 for mute)
- * Output: 0x00 (0dB) to 0xFE (-127dB) or 0xFF (mute)
+ * Output: 0x00 (mute) to 0xFE (-127dB) or 0xFF (0dB)
  */
 uint8_t AK4493_dBToAttenuation(float dB) {
-    if (dB >= 0.0f) {
-        return 0x00;  // 0dB (maximum)
-    } else if (dB <= -128.0f) {
-        return 0xFF;  // Mute
-    } else if (dB <= -127.0f) {
-        return 0xFE;  // -127dB (minimum before mute)
-    } else {
-        /* Convert dB to register value
-         * Formula: reg = -dB / 0.5
-         * Example: -40dB → 40 / 0.5 = 80 = 0x50
-         */
-        int reg = (int)(-dB * 2.0f);
-        if (reg < 0) reg = 0;
-        if (reg > 254) reg = 254;
-        return (uint8_t)reg;
-    }
+    if (dB >= 0.0f) return 0xFF; // 0dB = 0xFF
+    if (dB <= -127.5f) return 0x00; // Mute = 0x00
+    
+    // Formula: RegVal = (dB / 0.5) + 255
+    // Example: -40dB -> (-40 / 0.5) + 255 = -80 + 255 = 175 (0xAF)
+    int reg = (int)(dB * 2.0f) + 255;
+    if (reg < 1) reg = 1;
+    if (reg > 255) reg = 255;
+    return (uint8_t)reg;
 }
 
 /* Helper: Convert attenuation register value to dB */
 float AK4493_AttenuationTo_dB(uint8_t atten) {
-    if (atten == 0xFF) {
-        return -128.0f;  // Mute (use special value)
-    } else if (atten == 0x00) {
-        return 0.0f;     // Maximum
+    if (atten == 0x00) {
+        return -128.0f;  // Mute (手册定义 0x00 为 Mute)
+    } else if (atten == 0xFF) {
+        return 0.0f;     // 0dB (最大)
     } else {
-        /* Formula: dB = -reg * 0.5 */
-        return -(float)atten * 0.5f;
+        /* AK4493S 公式: dB = (atten - 255) * 0.5 */
+        return (float)(atten - 255) * 0.5f;
     }
 }

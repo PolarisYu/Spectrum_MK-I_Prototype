@@ -265,7 +265,9 @@ int main(void)
   hak4493.PW_EN_Port = DAC_PW_EN_GPIO_Port;
   hak4493.PW_EN_Pin = DAC_PW_EN_Pin;
 
-  // 4. 初始化 DAC (Power On only)
+  hak4493.IsInitialized = 0;
+
+  // 4. 初始化 DAC 电源 (Power On only)
   AK4493_PowerOn(&hak4493);
   USB_LOG_INFO("AK4493 Power On. Waiting for USB/I2S...\r\n");
 
@@ -281,12 +283,12 @@ int main(void)
   hnjw.PW_EN_Port = AMP_PW_EN_GPIO_Port;
   hnjw.PW_EN_Pin = AMP_PW_EN_Pin;
   
-  // NJW1195A_Init(&hnjw);
+  NJW1195A_Init(&hnjw);
 
   // Set initial volume to -10dB
   // 10dB / 0.5dB = 20 (0x14)
   // NJW1195A_SetVolume_DMA(&hnjw, 0x01, NJW1195A_dBToRegister(-10.0));
-  NJW1195A_SetAllVolumes(&hnjw, NJW1195A_dBToRegister(-10.0));
+  NJW1195A_SetAllVolumes(&hnjw, NJW1195A_dBToRegister(15.0));
 
   // HAL_GPIO_WritePin(AMP_PW_EN_GPIO_Port, AMP_PW_EN_Pin, GPIO_PIN_SET);
   
@@ -313,17 +315,18 @@ int main(void)
               if (AK4493_RegInit(&hak4493) == HAL_OK) {
                   USB_LOG_INFO("AK4493 Reg Init Success!\r\n");
                   HAL_Delay(10);
-                  AK4493_SetVolume_dB(&hak4493, -40.0);  // 从 -40dB 开始
+                  AK4493_SetVolume_dB(&hak4493, -30.0);  // 从 -40dB 开始
                   AK4493_SetMute(&hak4493, 0);           // 解除静音
                   HAL_Delay(100);
                   // 2. 逐步增加音量
-                  AK4493_SetVolume_dB(&hak4493, -20.0);  // -20dB
-                  HAL_Delay(50);
-                  AK4493_SetVolume_dB(&hak4493, -10.0);  // -10dB
-                  HAL_Delay(50);
-                  AK4493_SetVolume_dB(&hak4493, 0.0);    // 0dB (最大)
-                  USB_LOG_INFO("AK4493 Volume ramped to 0dB (Maximum)\r\n");
-                  ak4493_init_needed = 0;
+                  // AK4493_SetVolume_dB(&hak4493, -20.0);  // -20dB
+                  // HAL_Delay(50);
+                  // AK4493_SetVolume_dB(&hak4493, -10.0);  // -10dB
+                  // HAL_Delay(50);
+                  // AK4493_SetVolume_dB(&hak4493, 0.0);    // 0dB (最大)
+                  // USB_LOG_INFO("AK4493 Volume ramped to 0dB (Maximum)\r\n");
+                  hak4493.IsInitialized = 1;
+                  ak4493_init_needed = 0; // Clear flag
                   break;
               } else {
                   USB_LOG_INFO("AK4493 Reg Init Failed. Retrying in 100ms...\r\n");
@@ -334,6 +337,7 @@ int main(void)
           if (ak4493_init_needed) {
               USB_LOG_INFO("AK4493 Init Failed after 5 attempts. Check I2S Clock/Connections.\r\n");
               ak4493_init_needed = 0; // Clear flag
+              hak4493.IsInitialized = 0; // Clear flag 
           }
       }
     /* USER CODE END WHILE */
@@ -397,7 +401,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if (GPIO_Pin == GPIO_PIN_2) // PB2 (USB/I2S Detected)
   {
-      ak4493_init_needed = 1;
+      ak4493_init_needed = 1; // 标记需要初始化
   }
 }
 

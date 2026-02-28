@@ -91,11 +91,11 @@ extern "C" {
 #define AK4493_MSTBN    (1 << 7)  // 主空白
 
 /* 音量值定义 */
-#define AK4493_VOL_0DB          0x00  // 0dB（最大音量）
-#define AK4493_VOL_MINUS_40DB   0x50  // -40dB（安全默认值）
-#define AK4493_VOL_MINUS_64DB   0x80  // -64dB
-#define AK4493_VOL_MINUS_127DB  0xFE  // -127dB（最小）
-#define AK4493_VOL_MUTE         0xFF  // 静音
+#define AK4493_VOL_0DB          0xFF  // 0dB（最大音量）
+#define AK4493_VOL_MINUS_40DB   0xAF  // -40dB（安全默认值）
+#define AK4493_VOL_MINUS_64DB   0x7F  // -64dB
+#define AK4493_VOL_MINUS_127DB  0x01  // -127dB（最小）
+#define AK4493_VOL_MUTE         0x00  // 静音
 
 /* 音频输入格式 */
 typedef enum {
