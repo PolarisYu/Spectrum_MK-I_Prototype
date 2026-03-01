@@ -1,5 +1,3 @@
-
-
 #include "ak4493.h"
 
 /* Debug Tag for AK4493 */
