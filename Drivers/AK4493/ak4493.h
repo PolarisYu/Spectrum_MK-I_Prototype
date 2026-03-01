@@ -110,18 +110,18 @@ typedef enum {
 
 /* 数字滤波器类型 */
 typedef enum {
-    AK4493_FILTER_SHARP_ROLLOFF = 0,
-    AK4493_FILTER_SLOW_ROLLOFF,
-    AK4493_FILTER_SHORT_DELAY_SHARP,
-    AK4493_FILTER_SHORT_DELAY_SLOW,
-    AK4493_FILTER_SUPER_SLOW,
-    AK4493_FILTER_LOW_DISPERSION
+    AK4493_FILTER_SHARP_ROLLOFF     = 0,
+    AK4493_FILTER_SLOW_ROLLOFF      = 1,
+    AK4493_FILTER_SHORT_DELAY_SHARP = 2,
+    AK4493_FILTER_SHORT_DELAY_SLOW  = 3,
+    AK4493_FILTER_SUPER_SLOW        = 4,
+    AK4493_FILTER_LOW_DISPERSION    = 5,
 } AK4493_FilterTypeDef;
 
 /* PCM/DSD模式 */
 typedef enum {
     AK4493_MODE_PCM = 0,
-    AK4493_MODE_DSD
+    AK4493_MODE_DSD = 1,
 } AK4493_ModeTypeDef;
 
 /* 输出增益 */
@@ -190,7 +190,7 @@ HAL_StatusTypeDef AK4493_SetMonoMode(AK4493_HandleTypeDef *hak, uint8_t enable);
 HAL_StatusTypeDef AK4493_WriteReg(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t val);
 HAL_StatusTypeDef AK4493_WriteRegVerify(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t val);
 uint8_t AK4493_ReadReg(AK4493_HandleTypeDef *hak, uint8_t reg);
-void AK4493_DumpRegisters(AK4493_HandleTypeDef *hak);
+HAL_StatusTypeDef AK4493_DumpRegisters(AK4493_HandleTypeDef *hak);
 
 /* 辅助函数 */
 uint8_t AK4493_dBToAttenuation(float dB);

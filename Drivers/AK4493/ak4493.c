@@ -1,3 +1,5 @@
+
+
 #include "ak4493.h"
 
 /* Debug Tag for AK4493 */
@@ -20,7 +22,14 @@
 #define CONFIG_USB_DBG_LEVEL USB_DBG_INFO
 #endif
 
-/* Helper to write a register */
+/**
+ * @brief Helper to write a register
+ * 
+ * @param hak AK4493 handle
+ * @param reg Register address
+ * @param val Value to write
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_WriteReg(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t val) {
     HAL_StatusTypeDef status = HAL_I2C_Mem_Write(hak->hi2c, hak->DevAddress, reg, I2C_MEMADD_SIZE_8BIT, &val, 1, 100);
     if (status == HAL_OK && reg < AK4493_NUM_REGS) {
@@ -29,7 +38,14 @@ HAL_StatusTypeDef AK4493_WriteReg(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_
     return status;
 }
 
-/* Helper to write and verify a register */
+/**
+ * @brief Helper to write and verify a register
+ * 
+ * @param hak AK4493 handle
+ * @param reg Register address
+ * @param val Value to write
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_WriteRegVerify(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t val) {
     HAL_StatusTypeDef status = AK4493_WriteReg(hak, reg, val);
     if (status != HAL_OK) {
@@ -48,14 +64,84 @@ HAL_StatusTypeDef AK4493_WriteRegVerify(AK4493_HandleTypeDef *hak, uint8_t reg, 
     return HAL_OK;
 }
 
-/* Helper to read a register */
+/**
+ * @brief Helper to read a register
+ * 
+ * @param hak AK4493 handle
+ * @param reg Register address
+ * @return uint8_t Register value
+ */
 uint8_t AK4493_ReadReg(AK4493_HandleTypeDef *hak, uint8_t reg) {
     uint8_t val = 0;
     HAL_I2C_Mem_Read(hak->hi2c, hak->DevAddress, reg, I2C_MEMADD_SIZE_8BIT, &val, 1, 100);
     return val;
 }
 
-/* Update specific bit(s) in a register */
+/**
+ * @brief Readback and print all register values
+ * 
+ * @param hak AK4493 handle
+ */
+HAL_StatusTypeDef AK4493_DumpRegisters(AK4493_HandleTypeDef *hak) {
+    if (hak == NULL || hak->hi2c == NULL || !hak->IsInitialized) return HAL_ERROR;
+
+    // Register name table for enhanced readability
+    const char *reg_names[AK4493_NUM_REGS] = {
+        [0x00] = "Control 1     ",
+        [0x01] = "Control 2     ",
+        [0x02] = "Control 3     ",
+        [0x03] = "Lch Attenuation",
+        [0x04] = "Rch Attenuation",
+        [0x05] = "Control 4     ",
+        [0x06] = "DSD 1         ",
+        [0x07] = "Control 5     ",
+        [0x08] = "Sound Control ",
+        [0x09] = "DSD 2         ",
+        [0x0A] = "Control 6     ",
+        [0x0B] = "Control 7     ",
+        // 0x0C - 0x14 are reserved
+        [0x15] = "Control 8     "
+    };
+
+    USB_LOG_INFO("\r\n======= AK4493 Register Dump =======\r\n");
+    USB_LOG_INFO("ADDR | HEX  | BINARY   | NAME\r\n");
+    USB_LOG_INFO("------------------------------------\r\n");
+
+    for (uint8_t i = 0; i < AK4493_NUM_REGS; i++) {
+        // Skip undefined reserved area (0x0C to 0x14) for efficiency
+        if (i > 0x0B && i < 0x15) continue;
+
+        // Read from hardware real-time
+        uint8_t val = AK4493_ReadReg(hak, i);
+        
+        // Update shadow register cache
+        hak->Regs[i] = val;
+
+        // Print binary for bit-level view
+        char bin_str[9];
+        for (int j = 0; j < 8; j++) {
+            bin_str[7 - j] = (val & (1 << j)) ? '1' : '0';
+        }
+        bin_str[8] = '\0';
+
+        const char *name = (reg_names[i] != NULL) ? reg_names[i] : "Unknown       ";
+        
+        // Print register information
+        USB_LOG_INFO("0x%02X | 0x%02X | %s | %s\r\n", i, val, bin_str, name);
+    }
+    USB_LOG_INFO("====================================\r\n");
+    return HAL_OK;
+}
+
+/**
+ * @brief Update specific bit(s) in a register
+ * 
+ * @param hak AK4493 handle
+ * @param reg Register address
+ * @param mask Bit mask to apply
+ * @param value Value to set (1 for set, 0 for clear)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 static HAL_StatusTypeDef AK4493_UpdateBit(AK4493_HandleTypeDef *hak, uint8_t reg, uint8_t mask, uint8_t value) {
     uint8_t current = AK4493_ReadReg(hak, reg);
     if (value) {
@@ -66,7 +152,12 @@ static HAL_StatusTypeDef AK4493_UpdateBit(AK4493_HandleTypeDef *hak, uint8_t reg
     return AK4493_WriteReg(hak, reg, current);
 }
 
-/* Power On Initialization (Hardware Level) */
+/**
+ * @brief Power On Initialization (Hardware Level)
+ * 
+ * @param hak AK4493 handle
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_PowerOn(AK4493_HandleTypeDef *hak) {
     /* Step 1: External power enable (if applicable - board specific) */
     if (hak->PW_EN_Port != NULL) {
@@ -101,7 +192,12 @@ HAL_StatusTypeDef AK4493_PowerOn(AK4493_HandleTypeDef *hak) {
     return HAL_OK;
 }
 
-/* Register Initialization (Must be called AFTER clocks are stable) */
+/**
+ * @brief Register Initialization (Must be called AFTER clocks are stable)
+ * 
+ * @param hak AK4493 handle
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_RegInit(AK4493_HandleTypeDef *hak) {
     if (hak == NULL || hak->hi2c == NULL) {
         return HAL_ERROR;
@@ -186,7 +282,12 @@ HAL_StatusTypeDef AK4493_RegInit(AK4493_HandleTypeDef *hak) {
     return HAL_OK;
 }
 
-/* Complete initialization (Power + Registers) */
+/**
+ * @brief Complete initialization (Power + Registers)
+ * 
+ * @param hak AK4493 handle
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_Init(AK4493_HandleTypeDef *hak) {
     if (hak == NULL || hak->hi2c == NULL) {
         return HAL_ERROR;
@@ -205,7 +306,12 @@ HAL_StatusTypeDef AK4493_Init(AK4493_HandleTypeDef *hak) {
     return AK4493_RegInit(hak);
 }
 
-/* Hardware Reset */
+/**
+ * @brief Hardware Reset
+ * 
+ * @param hak AK4493 handle
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_Reset(AK4493_HandleTypeDef *hak) {
     if (hak->PDN_Port != NULL) {
         HAL_GPIO_WritePin(hak->PDN_Port, hak->PDN_Pin, GPIO_PIN_RESET);
@@ -217,13 +323,12 @@ HAL_StatusTypeDef AK4493_Reset(AK4493_HandleTypeDef *hak) {
     return HAL_OK;
 }
 
-/* Set Volume (both channels)
- * 0x00 = 0dB (maximum volume)
- * 0x01 = -0.5dB
- * 0x02 = -1.0dB
- * ...
- * 0xFE = -127dB
- * 0xFF = Mute
+/**
+ * @brief Set Volume (both channels)
+ * 
+ * @param hak AK4493 handle
+ * @param volume Volume level (0x00 = 0dB, 0xFF = Mute)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
  */
 HAL_StatusTypeDef AK4493_SetVolume(AK4493_HandleTypeDef *hak, uint8_t volume) {
     HAL_StatusTypeDef status;
@@ -233,7 +338,14 @@ HAL_StatusTypeDef AK4493_SetVolume(AK4493_HandleTypeDef *hak, uint8_t volume) {
     return status;
 }
 
-/* Set Volume with separate L/R control */
+/**
+ * @brief Set Volume with separate L/R control
+ * 
+ * @param hak AK4493 handle
+ * @param left Left channel volume level (0x00 = 0dB, 0xFF = Mute)
+ * @param right Right channel volume level (0x00 = 0dB, 0xFF = Mute)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetVolumeLR(AK4493_HandleTypeDef *hak, uint8_t left, uint8_t right) {
     HAL_StatusTypeDef status;
     status = AK4493_WriteReg(hak, AK4493_REG_03_LCH_ATT, left);
@@ -242,13 +354,25 @@ HAL_StatusTypeDef AK4493_SetVolumeLR(AK4493_HandleTypeDef *hak, uint8_t left, ui
     return status;
 }
 
-/* Set Volume in dB (0.0 to -127.0 dB, or use -128.0 for mute) */
+/**
+ * @brief Set Volume in dB (0.0 to -127.0 dB, or use -128.0 for mute)
+ * 
+ * @param hak AK4493 handle
+ * @param dB Desired volume in dB
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetVolume_dB(AK4493_HandleTypeDef *hak, float dB) {
     uint8_t atten = AK4493_dBToAttenuation(dB);
     return AK4493_SetVolume(hak, atten);
 }
 
-/* Soft Mute Control */
+/**
+ * @brief Soft Mute Control
+ * 
+ * @param hak AK4493 handle
+ * @param enable 1 to enable mute, 0 to disable
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetMute(AK4493_HandleTypeDef *hak, uint8_t enable) {
     /* SMUTE bit is bit 0 of Control 2 (0x01) */
     HAL_StatusTypeDef status = AK4493_UpdateBit(hak, AK4493_REG_01_CONTROL2, AK4493_SMUTE, enable);
@@ -258,10 +382,17 @@ HAL_StatusTypeDef AK4493_SetMute(AK4493_HandleTypeDef *hak, uint8_t enable) {
     return status;
 }
 
-/* Set Digital Filter Type */
+/**
+ * @brief Set Digital Filter Type
+ * 
+ * @param hak AK4493 handle
+ * @param filter Filter type (see AK4493_FilterTypeDef)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetFilter(AK4493_HandleTypeDef *hak, AK4493_FilterTypeDef filter) {
     uint8_t sd = 0, slow = 0, sslow = 0;
-    
+    if (hak == NULL || hak->hi2c == NULL || !hak->IsInitialized) return HAL_ERROR;
+
     /* Filter settings based on datasheet Table 31 (page 55) */
     switch (filter) {
         case AK4493_FILTER_SHARP_ROLLOFF:
@@ -308,7 +439,13 @@ HAL_StatusTypeDef AK4493_SetFilter(AK4493_HandleTypeDef *hak, AK4493_FilterTypeD
     return HAL_OK;
 }
 
-/* Set PCM/DSD Mode */
+/**
+ * @brief Set PCM/DSD Mode
+ * 
+ * @param hak AK4493 handle
+ * @param mode AK4493_MODE_PCM or AK4493_MODE_DSD
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetMode(AK4493_HandleTypeDef *hak, AK4493_ModeTypeDef mode) {
     /* Soft reset before mode change */
     AK4493_UpdateBit(hak, AK4493_REG_00_CONTROL1, AK4493_RSTN, 0);
@@ -345,7 +482,13 @@ HAL_StatusTypeDef AK4493_SetMode(AK4493_HandleTypeDef *hak, AK4493_ModeTypeDef m
     return HAL_OK;
 }
 
-/* Set Audio Input Format */
+/**
+ * @brief Set Audio Input Format
+ * 
+ * @param hak AK4493 handle
+ * @param format Audio format (see AK4493_AudioFormatTypeDef)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetAudioFormat(AK4493_HandleTypeDef *hak, AK4493_AudioFormatTypeDef format) {
     /* DIF[2:0] are bits 3:1 of Control 1 */
     uint8_t current = AK4493_ReadReg(hak, AK4493_REG_00_CONTROL1);
@@ -359,7 +502,13 @@ HAL_StatusTypeDef AK4493_SetAudioFormat(AK4493_HandleTypeDef *hak, AK4493_AudioF
     return AK4493_WriteReg(hak, AK4493_REG_00_CONTROL1, current);
 }
 
-/* Set Output Gain */
+/**
+ * @brief Set Output Gain
+ * 
+ * @param hak AK4493 handle
+ * @param gain Gain level (AK4493_GAIN_3_75Vpp or AK4493_GAIN_2_8Vpp)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetGain(AK4493_HandleTypeDef *hak, AK4493_GainTypeDef gain) {
     /* GC[2:0] are bits 3:1 of Control 5 (0x07) */
     /* GC=001 (0x08) → ±3.75Vpp, GC=000 (0x00) → ±2.8Vpp */
@@ -375,7 +524,13 @@ HAL_StatusTypeDef AK4493_SetGain(AK4493_HandleTypeDef *hak, AK4493_GainTypeDef g
     return AK4493_WriteReg(hak, AK4493_REG_07_CONTROL5, current);
 }
 
-/* Set De-Emphasis Filter */
+/**
+ * @brief Set De-Emphasis Filter
+ * 
+ * @param hak AK4493 handle
+ * @param deemp De-Emphasis type (AK4493_DEEMP_32KHZ or AK4493_DEEMP_44KHZ)
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetDeEmphasis(AK4493_HandleTypeDef *hak, AK4493_DeEmphasisTypeDef deemp) {
     /* DEM[1:0] are bits 2:1 of Control 2 */
     uint8_t current = AK4493_ReadReg(hak, AK4493_REG_01_CONTROL2);
@@ -384,15 +539,23 @@ HAL_StatusTypeDef AK4493_SetDeEmphasis(AK4493_HandleTypeDef *hak, AK4493_DeEmpha
     return AK4493_WriteReg(hak, AK4493_REG_01_CONTROL2, current);
 }
 
-/* Set Mono Mode */
+/**
+ * @brief Set Mono Mode
+ * 
+ * @param hak AK4493 handle
+ * @param enable 1 to enable mono mode, 0 to disable
+ * @return HAL_StatusTypeDef HAL_OK if successful, HAL_ERROR otherwise
+ */
 HAL_StatusTypeDef AK4493_SetMonoMode(AK4493_HandleTypeDef *hak, uint8_t enable) {
     /* MONO bit is bit 3 of Control 3 */
     return AK4493_UpdateBit(hak, AK4493_REG_02_CONTROL3, AK4493_MONO, enable);
 }
 
-/* Helper: Convert dB to attenuation register value
- * Input: -127.0 to 0.0 dB (or -128.0 for mute)
- * Output: 0x00 (mute) to 0xFE (-127dB) or 0xFF (0dB)
+/**
+ * @brief Helper: Convert dB to attenuation register value
+ * 
+ * @param dB Input dB value (-127.0 to 0.0 dB, or -128.0 for mute)
+ * @return uint8_t Attenuation register value (0x00 to 0xFF)
  */
 uint8_t AK4493_dBToAttenuation(float dB) {
     if (dB >= 0.0f) return 0xFF; // 0dB = 0xFF
@@ -406,7 +569,12 @@ uint8_t AK4493_dBToAttenuation(float dB) {
     return (uint8_t)reg;
 }
 
-/* Helper: Convert attenuation register value to dB */
+/**
+ * @brief Convert attenuation register value to dB
+ * 
+ * @param atten Attenuation register value (0x00 to 0xFF)
+ * @return float dB value (-128.0 for mute, 0.0 for max gain, -127.5 to 0.0 dB)
+ */
 float AK4493_AttenuationTo_dB(uint8_t atten) {
     if (atten == 0x00) {
         return -128.0f;  // Mute (手册定义 0x00 为 Mute)

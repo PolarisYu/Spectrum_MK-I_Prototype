@@ -90,7 +90,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-AK4493_HandleTypeDef hak4493;
+AK4493_HandleTypeDef hak;
 volatile uint8_t ak4493_init_needed = 0;
 NJW1195A_HandleTypeDef hnjw;
 CT7302_HandleTypeDef hct;
@@ -106,7 +106,7 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 /**
-  * @brief USB Log (Retargets the C library printf function to the USART)
+  * @brief RTT Log (Retargets the C library printf function to the Segger RTT)
   */
 #if defined(__CC_ARM)      // Keil
 int fputc(int ch, FILE *f)
@@ -128,40 +128,40 @@ int _write(int fd, char *ptr, int len)
  * @param hi2c: Pointer to a I2C_HandleTypeDef structure that contains
  * the configuration information for the specified I2C.
  */
-void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
-    HAL_StatusTypeDef status;
-    uint8_t i;
-    uint8_t found_count = 0;
+// void I2C_ScanBus(I2C_HandleTypeDef *hi2c) {
+//     HAL_StatusTypeDef status;
+//     uint8_t i;
+//     uint8_t found_count = 0;
 
-    USB_LOG_INFO("--- Starting I2C Bus Scan ---\r\n");
-    USB_LOG_INFO("     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n");
+//     USB_LOG_INFO("--- Starting I2C Bus Scan ---\r\n");
+//     USB_LOG_INFO("     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\r\n");
 
-    for (i = 0; i < 128; i++) {
-        // Print row header every 16 addresses
-        if (i % 16 == 0) {
-            USB_LOG_INFO("%02X: ", i);
-        }
+//     for (i = 0; i < 128; i++) {
+//         // Print row header every 16 addresses
+//         if (i % 16 == 0) {
+//             USB_LOG_INFO("%02X: ", i);
+//         }
 
-        /* * Use HAL_I2C_IsDeviceReady to probe the address.
-         * Note: The address is shifted left by 1 for the 8-bit format.
-         */
-        status = HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(i << 1), 3, 10);
+//         /* * Use HAL_I2C_IsDeviceReady to probe the address.
+//          * Note: The address is shifted left by 1 for the 8-bit format.
+//          */
+//         status = HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(i << 1), 3, 10);
 
-        if (status == HAL_OK) {
-            USB_LOG_INFO("%02X ", i); // Device found, print 7-bit hex address
-            found_count++;
-        } else {
-            USB_LOG_INFO("-- "); // No response
-        }
+//         if (status == HAL_OK) {
+//             USB_LOG_INFO("%02X ", i); // Device found, print 7-bit hex address
+//             found_count++;
+//         } else {
+//             USB_LOG_INFO("-- "); // No response
+//         }
 
-        // New line after every 16 probes
-        if (i % 16 == 15) {
-            USB_LOG_INFO("\r\n");
-        }
-    }
+//         // New line after every 16 probes
+//         if (i % 16 == 15) {
+//             USB_LOG_INFO("\r\n");
+//         }
+//     }
 
-    USB_LOG_INFO("--- Scan Finished. Found %d device(s) ---\n", found_count);
-}
+//     USB_LOG_INFO("--- Scan Finished. Found %d device(s) ---\n", found_count);
+// }
 
 /**
  * @brief Process the status LED breathing effect.
@@ -254,21 +254,21 @@ int main(void)
   CT7302_Init(&hct);
 
   // 1. 配置 I2C 句柄
-  hak4493.hi2c = &hi2c2;
+  hak.hi2c = &hi2c2;
   
   // 2. 配置 I2C 地址 (默认是 0x26)
-  hak4493.DevAddress = AK4493_DEFAULT_ADDR;
+  hak.DevAddress = AK4493_DEFAULT_ADDR;
   
   // 3. 配置 PDN 复位引脚 (根据 main.h 中的定义)
-  hak4493.PDN_Port = DAC_PDN_GPIO_Port;
-  hak4493.PDN_Pin = DAC_PDN_Pin;
-  hak4493.PW_EN_Port = DAC_PW_EN_GPIO_Port;
-  hak4493.PW_EN_Pin = DAC_PW_EN_Pin;
+  hak.PDN_Port = DAC_PDN_GPIO_Port;
+  hak.PDN_Pin = DAC_PDN_Pin;
+  hak.PW_EN_Port = DAC_PW_EN_GPIO_Port;
+  hak.PW_EN_Pin = DAC_PW_EN_Pin;
 
-  hak4493.IsInitialized = 0;
+  hak.IsInitialized = 0;
 
   // 4. 初始化 DAC 电源 (Power On only)
-  AK4493_PowerOn(&hak4493);
+  AK4493_PowerOn(&hak);
   USB_LOG_INFO("AK4493 Power On. Waiting for USB/I2S...\r\n");
 
   /* AK4493 Register Init is now handled in EXTI callback and main loop */
@@ -306,26 +306,25 @@ int main(void)
           HAL_Delay(1000); // Initial wait for USB/I2S clock
 
           // Scan I2C bus
-          // I2C_ScanBus(hak4493.hi2c);
+          // I2C_ScanBus(hak.hi2c);
 
           // Retry logic: Try 5 times
           int i;
           for (i = 0; i < 5; i++) {
               USB_LOG_INFO("AK4493 Reg Init Attempt %d/5...\r\n", i + 1);
-              if (AK4493_RegInit(&hak4493) == HAL_OK) {
+              if (AK4493_RegInit(&hak) == HAL_OK) {
                   USB_LOG_INFO("AK4493 Reg Init Success!\r\n");
                   HAL_Delay(10);
-                  AK4493_SetVolume_dB(&hak4493, -30.0);  // 从 -40dB 开始
-                  AK4493_SetMute(&hak4493, 0);           // 解除静音
+                  AK4493_SetVolume(&hak, 130); 
+                  AK4493_SetMute(&hak, 0);           // 解除静音
                   HAL_Delay(100);
                   // 2. 逐步增加音量
-                  // AK4493_SetVolume_dB(&hak4493, -20.0);  // -20dB
-                  // HAL_Delay(50);
-                  // AK4493_SetVolume_dB(&hak4493, -10.0);  // -10dB
-                  // HAL_Delay(50);
-                  // AK4493_SetVolume_dB(&hak4493, 0.0);    // 0dB (最大)
-                  // USB_LOG_INFO("AK4493 Volume ramped to 0dB (Maximum)\r\n");
-                  hak4493.IsInitialized = 1;
+                  for (int vol = 130; vol <= 150; vol++) {
+                      AK4493_SetVolume(&hak, vol);
+                      HAL_Delay(50);
+                  }
+                  USB_LOG_INFO("AK4493 Volume ramped to 0dB (Maximum)\r\n");
+                  hak.IsInitialized = 1;
                   ak4493_init_needed = 0; // Clear flag
                   break;
               } else {
@@ -337,7 +336,7 @@ int main(void)
           if (ak4493_init_needed) {
               USB_LOG_INFO("AK4493 Init Failed after 5 attempts. Check I2S Clock/Connections.\r\n");
               ak4493_init_needed = 0; // Clear flag
-              hak4493.IsInitialized = 0; // Clear flag 
+              hak.IsInitialized = 0; // Clear flag 
           }
       }
     /* USER CODE END WHILE */
