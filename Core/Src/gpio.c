@@ -54,7 +54,7 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SPI2_LATCH_GPIO_Port, SPI2_LATCH_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SE_AMP_EN_Pin|SPI2_LATCH_Pin|BAL_AMP_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, AMP_PW_EN_Pin|DAC_PW_EN_Pin, GPIO_PIN_RESET);
@@ -62,12 +62,29 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(DAC_PDN_GPIO_Port, DAC_PDN_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PB0 PB1 PB2 PB10
-                           SE_AMP_EN_Pin BAL_AMP_EN_Pin PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10
-                          |SE_AMP_EN_Pin|BAL_AMP_EN_Pin|GPIO_PIN_9;
+  /*Configure GPIO pin : VBUS_PG_Pin */
+  GPIO_InitStruct.Pin = VBUS_PG_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(VBUS_PG_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : SE_AMP_EN_Pin BAL_AMP_EN_Pin */
+  GPIO_InitStruct.Pin = SE_AMP_EN_Pin|BAL_AMP_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SPI2_LATCH_Pin */

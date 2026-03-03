@@ -47,6 +47,12 @@ typedef struct {
     /* LATCH pin (required) */
     GPIO_TypeDef *LatchPort;
     uint16_t LatchPin;
+
+    /* AMP EN pin (required) */
+    GPIO_TypeDef *SE_EN_Port;
+    uint16_t SE_EN_Pin;
+    GPIO_TypeDef *BAL_EN_Port;
+    uint16_t BAL_EN_Pin;
     
     /* Optional chip address pins (default: both LOW = address 0x0) */
     GPIO_TypeDef *ADR0_Port;
@@ -69,6 +75,7 @@ typedef struct {
 
 /* Function Prototypes */
 HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw);
+HAL_StatusTypeDef NJW1195A_Core_Config(NJW1195A_HandleTypeDef *hnjw);
 HAL_StatusTypeDef NJW1195A_SetVolume(NJW1195A_HandleTypeDef *hnjw, uint8_t channel, uint8_t level);
 HAL_StatusTypeDef NJW1195A_SetVolume_DMA(NJW1195A_HandleTypeDef *hnjw, uint8_t channel, uint8_t level);
 HAL_StatusTypeDef NJW1195A_SetAllVolumes(NJW1195A_HandleTypeDef *hnjw, uint8_t level);

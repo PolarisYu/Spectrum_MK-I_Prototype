@@ -32,6 +32,25 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+/* Debug Tag for Interrupt */
+#define USB_DBG_TAG "ITR"
+
+/* Include usb_config.h if available to get debug levels */
+#if __has_include("usb_config.h")
+#include "usb_config.h"
+#endif
+
+/* Ensure CONFIG_USB_PRINTF is defined if not provided by usb_config.h */
+#ifndef CONFIG_USB_PRINTF
+#include <stdio.h>
+#define CONFIG_USB_PRINTF printf
+#endif
+
+#include "usb_log.h"
+
+#ifndef CONFIG_USB_DBG_LEVEL
+#define CONFIG_USB_DBG_LEVEL USB_DBG_INFO
+#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -223,9 +242,8 @@ void EXTI0_IRQHandler(void)
   /* USER CODE BEGIN EXTI0_IRQn 0 */
 
   /* USER CODE END EXTI0_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
+  HAL_GPIO_EXTI_IRQHandler(VBUS_PG_Pin);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
-
   /* USER CODE END EXTI0_IRQn 1 */
 }
 
@@ -395,7 +413,7 @@ void USB_LP_IRQHandler(void)
   /* USER CODE BEGIN USB_LP_IRQn 1 */
   #endif
 
-  // CherryUSB 中断处理函数
+  // CharryUSB Interrupt Handler
   USBD_IRQHandler(0);
 
   /* USER CODE END USB_LP_IRQn 1 */
@@ -528,5 +546,44 @@ void DMA1_Channel8_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void EXTI15_10_IRQHandler(void)
+{
+  /* * 调用 HAL 库的统一处理函数。
+   * 它会自动判断是 Pin 10~15 中的哪一个触发了中断，
+   * 然后自动清除对应的标志位，并调用 HAL_GPIO_EXTI_Callback()
+   * 注意：这里的 SE_EN_Pin 需要替换为你实际定义的宏（比如 GPIO_PIN_11）
+   */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_11);
+  // if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_11) != RESET)
+  // {
+  //   __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_11);
+  //   HAL_GPIO_EXTI_Callback(GPIO_PIN_11);
+  // }
 
+  // /* 2. 【救命兜底】：强制清除共享该中断线的其他所有引脚标志位！
+  //  * 防止 Pin 10, 12, 13, 14, 15 把 CPU 锁死。
+  //  */
+  // __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_10 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+  /* * 调用 HAL 库的统一处理函数。
+   * 它会自动判断是 Pin 5~9 中的哪一个触发了中断，
+   * 然后自动清除对应的标志位，并调用 HAL_GPIO_EXTI_Callback()
+   * 注意：这里的 SE_EN_Pin 需要替换为你实际定义的宏（比如 GPIO_PIN_9）
+   */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
+  // if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_6) != RESET)
+  // {
+  //   __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_6); // 先清标志位
+  //   HAL_GPIO_EXTI_Callback(GPIO_PIN_6);   // 再调回调逻辑
+  // }
+
+  // /* 2. 【救命兜底】：强制清除共享该中断线的其他所有引脚标志位！
+  //  * 防止 Pin 5, 7, 8, 9 上的噪声标志位把 CPU 永远锁死在中断里。
+  //  */
+  // __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_5 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
+}
 /* USER CODE END 1 */

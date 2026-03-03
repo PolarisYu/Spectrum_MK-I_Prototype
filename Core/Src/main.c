@@ -43,7 +43,7 @@
 #include "njw1195a.h"
 #include "ct7302.h"
 
-/* Debug Tag for AK4493 */
+/* Debug Tag for System */
 #define USB_DBG_TAG "SYS"
 
 /* Include usb_config.h if available to get debug levels */
@@ -242,10 +242,14 @@ int main(void)
   MX_SPI2_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_Delay(1000);
 
   /* 启动 TIM15 的两个通道 */
   HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_2);
+
+  HAL_GPIO_WritePin(SE_AMP_EN_GPIO_Port, SE_AMP_EN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(BAL_AMP_EN_GPIO_Port, BAL_AMP_EN_Pin, GPIO_PIN_RESET);
 
   cdc_acm_init(u_busid, USB_BASE);
   userShellInit();
@@ -283,6 +287,11 @@ int main(void)
   hnjw.PW_EN_Port = AMP_PW_EN_GPIO_Port;
   hnjw.PW_EN_Pin = AMP_PW_EN_Pin;
   
+  hnjw.SE_EN_Port = SE_AMP_EN_GPIO_Port;
+  hnjw.SE_EN_Pin = SE_AMP_EN_Pin;
+  hnjw.BAL_EN_Port = BAL_AMP_EN_GPIO_Port;
+  hnjw.BAL_EN_Pin = BAL_AMP_EN_Pin;
+  
   NJW1195A_Init(&hnjw);
 
   // Set initial volume to -10dB
@@ -319,7 +328,7 @@ int main(void)
                   AK4493_SetMute(&hak, 0);           // 解除静音
                   HAL_Delay(100);
                   // 2. 逐步增加音量
-                  for (int vol = 130; vol <= 150; vol++) {
+                  for (int vol = 130; vol <= 170; vol++) {
                       AK4493_SetVolume(&hak, vol);
                       HAL_Delay(50);
                   }
@@ -398,9 +407,84 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+  if (GPIO_Pin == GPIO_PIN_0) // PC0 (VBUS_PG)
+  {
+    // USB_LOG_INFO("Power Down Interrupt Triggered!\r\n");
+    /* 1. 预先设置低电平：
+     * 虽然现在引脚还是 EXTI 输入模式，但这行代码会提前把 0 写进 ODR (输出数据寄存器)。
+     * 这样在下一步切换为输出模式的瞬间，引脚会毫无缝隙地直接输出低电平。
+     */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6 | GPIO_PIN_11, GPIO_PIN_RESET);
+
+    /* 2. 重新配置为推挽输出 (Push-Pull) */
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_11;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;        // 强推挽输出
+    GPIO_InitStruct.Pull = GPIO_NOPULL;                // 不需要内部上下拉
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH; // 最高响应速度
+    
+    // 瞬间强行接管控制权，运放被强制 MUTE
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* 3. 保险起见，再次明确输出低电平 */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6 | GPIO_PIN_11, GPIO_PIN_RESET);
+
+    /* 4. 打印掉电日志 (注意：因为马上就没电了，这句Log不一定能完整发完到电脑上) */
+    USB_LOG_INFO("Power Down Interrupt Triggered! AMP forcefully MUTED.\r\n");
+
+    /* 5. 【终极防御：死亡循环】
+     * 此时运放已经安全关闭，正负电源还在正常工作。
+     * 我们必须把 CPU 永远卡在这里，防止它退回主循环去执行其他可能导致电平翻转的代码，
+     * 直到几毫秒/几十毫秒后电源彻底耗尽，MCU 物理关机。
+     */
+    while (1)
+    {
+        // 静静等待系统断电...
+    }
+  }
   if (GPIO_Pin == GPIO_PIN_2) // PB2 (USB/I2S Detected)
   {
-      ak4493_init_needed = 1; // 标记需要初始化
+    if(HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_2) == GPIO_PIN_SET)
+    {
+      ak4493_init_needed = 1;
+      USB_LOG_INFO("USB Interface Activated.\r\n");
+    }
+    else
+    {
+      USB_LOG_INFO("USB Interface Removed.\r\n");
+    }
+  }
+  if (GPIO_Pin == GPIO_PIN_6) // PB6 (Input Selector)
+  {
+    // When EXTI interrupt occurs, read the current pin state
+    GPIO_PinState currentState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6);
+    
+    if(currentState == GPIO_PIN_SET)
+    {
+      /* Rising Edge */
+      USB_LOG_INFO("BAL Plugged In Detected.\r\n");
+    }
+    else
+    {
+      /* Falling Edge */
+      USB_LOG_INFO("BAL Plugged Out Detected.\r\n");
+    }
+  }
+  if (GPIO_Pin == GPIO_PIN_11) // PB7 (BAL Selector)
+  {
+    // When EXTI interrupt occurs, read the current pin state
+    GPIO_PinState currentState = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11);
+    
+    if(currentState == GPIO_PIN_SET)
+    {
+      /* Rising Edge */
+      USB_LOG_INFO("SE Plugged In Detected.\r\n");
+    }
+    else
+    {
+      /* Falling Edge */
+      USB_LOG_INFO("SE Plugged Out Detected.\r\n");
+    }
   }
 }
 

@@ -57,6 +57,9 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define VBUS_PG_Pin GPIO_PIN_0
+#define VBUS_PG_GPIO_Port GPIOC
+#define VBUS_PG_EXTI_IRQn EXTI0_IRQn
 #define DATA_LED_Pin GPIO_PIN_3
 #define DATA_LED_GPIO_Port GPIOA
 #define SE_AMP_EN_Pin GPIO_PIN_11

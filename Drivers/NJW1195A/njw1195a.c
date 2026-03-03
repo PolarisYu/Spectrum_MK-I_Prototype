@@ -23,9 +23,40 @@
 /* Private helper function to send 16-bit control word */
 static HAL_StatusTypeDef NJW1195A_SendCommand(NJW1195A_HandleTypeDef *hnjw, uint8_t address, uint8_t data);
 static HAL_StatusTypeDef NJW1195A_SendCommand_DMA(NJW1195A_HandleTypeDef *hnjw, uint8_t address, uint8_t data);
+static void AMP_EN_Pins_EXTI_Init(NJW1195A_HandleTypeDef *hnjw);
 
 /* Initialize the NJW1195A */
 HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
+    HAL_StatusTypeDef status;
+
+    /* 阶段 1：初始化音频芯片并使其进入全通道 MUTE 状态
+     * 此时 AMP EN 引脚依然保持 CubeMX 初始化时的 Low 状态 (运放硬件级关闭)
+     */
+    status = NJW1195A_Core_Config(hnjw);
+    if (status != HAL_OK) {
+        return status;
+    }
+
+    /* 阶段 2：黄金延时等待供电轨完美稳定
+     * NJW1195A 本身已经静音，等待额外的 400ms (加上前面的 100ms 共计 500ms)
+     * 确保 SEPIC 和 Cuk 电路输出的运放正负电源纹波完全平息
+     */
+    USB_LOG_INFO("Waiting for AMP power rails to stabilize...\r\n");
+    HAL_Delay(400); 
+
+    /* 阶段 3：释放控制权，开启外部中断
+     * 此时系统已处于绝对安全的稳态，将引脚控制权交还给耳机座的机械插入检测开关
+     */
+    USB_LOG_INFO("Ready to switch EXTI...\r\n");
+    AMP_EN_Pins_EXTI_Init(hnjw);
+    USB_LOG_INFO("EXTI Switched Successfully!\r\n");
+
+    USB_LOG_INFO("Audio System Initialization and Power Sequencing Complete.\r\n");
+    return HAL_OK;
+}
+
+/* Core Init configuration function for NJW1195A */
+HAL_StatusTypeDef NJW1195A_Core_Config(NJW1195A_HandleTypeDef *hnjw) {
     if (hnjw == NULL || hnjw->LatchPort == NULL || hnjw->hspi == NULL) {
         return HAL_ERROR;
     }
@@ -46,17 +77,13 @@ HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
     }
     
     /* Wait for power stabilization (chip needs time after V+/V- applied) */
-    HAL_Delay(20);
+    HAL_Delay(100);
     
     /* Initialize state */
     hnjw->IsBusy = 0;
     hnjw->QueuedCommands = 0;
     
     USB_LOG_INFO("NJW1195A Initialized (Chip Address: 0x%01X)\r\n", hnjw->ChipAddress);
-    
-    /* Configure initial state: All channels muted, Input 1 selected */
-    /* Note: Datasheet says initial condition is MUTE (0xFF for volume registers) */
-    /* We'll explicitly set known good defaults */
     
     /* Set all volumes to mute initially */
     NJW1195A_SetVolume(hnjw, NJW1195A_REG_VOL_CH1, NJW1195A_VOL_MUTE);
@@ -70,10 +97,9 @@ HAL_StatusTypeDef NJW1195A_Init(NJW1195A_HandleTypeDef *hnjw) {
     
     /* Set input selectors to Input 1 */
     NJW1195A_SetInput(hnjw, NJW1195A_INPUT_1, NJW1195A_INPUT_1, 
-                             NJW1195A_INPUT_1, NJW1195A_INPUT_1);
+                            NJW1195A_INPUT_1, NJW1195A_INPUT_1);
     
     USB_LOG_INFO("NJW1195A Initial Configuration Complete\r\n");
-    
     return HAL_OK;
 }
 
@@ -273,4 +299,79 @@ uint8_t NJW1195A_dBToRegister(float dB) {
         USB_LOG_INFO("dB: %.1f, reg: 0x%02X\n", dB, regValue);
         return (uint8_t)regValue;
     }
+}
+
+static void AMP_EN_Pins_EXTI_Init(NJW1195A_HandleTypeDef *hnjw) {
+    // GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    // GPIO_InitStruct.Pin = hnjw->SE_EN_Pin; 
+    
+    // GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING; 
+    
+    // GPIO_InitStruct.Pull = GPIO_NOPULL; 
+    
+    // /* Reinitialize GPIO with new settings,
+    //  * overriding CubeMX default Output Pull-down configuration.
+    //  */
+    // HAL_GPIO_Init(hnjw->SE_EN_Port, &GPIO_InitStruct); 
+
+    // /* Tips:
+    //  * 1. EXTI15_10_IRQn is the interrupt line for pins EXTI15 to EXTI10.
+    //  * 2. Make sure to enable the corresponding NVIC interrupt in your main.c.
+    //  * 3. The EXTI interrupt handler (EXTI15_10_IRQHandler) is defined in stm32f1xx_hal_msp.c.
+    //  */
+    // HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0); 
+
+    // HAL_GPIO_Init(hnjw->SE_EN_Port, &GPIO_InitStruct); 
+
+    // /* Clean up any pending interrupt flags */
+    // __HAL_GPIO_EXTI_CLEAR_IT(hnjw->SE_EN_Pin);
+
+    // HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+
+    // HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); 
+
+    // USB_LOG_INFO("AMP EN Pins configured to EXTI Mode.\r\n");
+
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    /* * 1. 组合引脚：因为 PB6 和 PB11 都在 GPIOB 上，
+     * 可以用位或运算符 '|' 把它们拼在一起，一次性初始化，提高执行效率。
+     * (如果你在 hnjw 结构体里存了这两个 Pin，也可以写成 hnjw->DET1_Pin | hnjw->DET2_Pin)
+     */
+    GPIO_InitStruct.Pin = GPIO_PIN_6 | GPIO_PIN_11; 
+    USB_LOG_INFO("Selected AMP EN Pins (PB6 & PB11) for EXTI Mode.\r\n");
+    
+    /* 根据拔插防爆音逻辑，选择双边沿触发 */
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING; 
+    USB_LOG_INFO("AMP EN Pins (PB6 & PB11) configured with Rising/Falling Edge Trigger.\r\n");
+    
+    /* 假设外部已有硬件上下拉，设为 NOPULL；若没有，请改为 GPIO_PULLUP / GPIO_PULLDOWN */
+    GPIO_InitStruct.Pull = GPIO_NOPULL; 
+    USB_LOG_INFO("AMP EN Pins (PB6 & PB11) configured with NOPULL.\r\n");
+    
+    /* 执行重配置，覆盖掉之前的 Output 模式 */
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct); 
+    USB_LOG_INFO("AMP EN Pins (PB6 & PB11) configured to EXTI Mode.\r\n");
+
+    /* * 2. 【救命关键】：分别清除 PB6 和 PB11 在切换模式时产生的“幽灵中断”标志位！
+     * 绝对不能漏掉，否则下面 EnableIRQ 的瞬间又会坠入 Default_Handler。
+     */
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_6);
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_11);
+    USB_LOG_INFO("AMP EN Pins (PB6 & PB11) interrupt flags cleared.\r\n");
+
+    /* * 3. 开启 PB6 对应的中断线 (EXTI9_5_IRQn)
+     */
+    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0); 
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn); 
+    USB_LOG_INFO("AMP EN Pin PB6 configured with EXTI9_5_IRQn.\r\n");
+
+    /* * 4. 开启 PB11 对应的中断线 (EXTI15_10_IRQn)
+     */
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0); 
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); 
+    USB_LOG_INFO("AMP EN Pin PB11 configured with EXTI15_10_IRQn.\r\n");
+
+    USB_LOG_INFO("AMP EN Pins (PB6 & PB11) configured to EXTI Mode.\r\n");
 }
