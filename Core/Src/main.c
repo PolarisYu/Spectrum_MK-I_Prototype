@@ -22,6 +22,7 @@
 #include "cordic.h"
 #include "crc.h"
 #include "dma.h"
+#include "app_fatfs.h"
 #include "fmac.h"
 #include "i2c.h"
 #include "rng.h"
@@ -143,6 +144,9 @@ int main(void)
   MX_FMAC_Init();
   MX_SPI2_Init();
   MX_I2C3_Init();
+  if (MX_FATFS_Init() != APP_OK) {
+    Error_Handler();
+  }
   /* USER CODE BEGIN 2 */
   HAL_Delay(1000);
 
