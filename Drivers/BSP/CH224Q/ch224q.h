@@ -3,7 +3,7 @@
  * @file    ch224q.h
  * @brief   CH224Q/CH224A USB PD Sink Controller Driver
  * @version 2.0.0
- * @date    2024-02-16
+ * @date    2026-02-16
  ******************************************************************************
  * @attention
  * 
@@ -33,8 +33,9 @@ extern "C" {
 /* ============================================================================
  * I2C Address Configuration
  * ========================================================================== */
-#define CH224Q_I2C_ADDR_0           0x22     // 7-bit address (AD0=0)
-#define CH224Q_I2C_ADDR_1           0x23     // 7-bit address (AD0=1)
+#define CH224Q_I2C_ADDR_0           (0x22 << 1)     // 7-bit address (AD0=0)
+#define CH224Q_I2C_ADDR_1           (0x23 << 1)     // 7-bit address (AD0=1)
+// STM32 HAL I2C address is left-aligned (7-bit << 1)
 #define CH224Q_I2C_ADDR_DEFAULT     CH224Q_I2C_ADDR_0
 
 /* ============================================================================

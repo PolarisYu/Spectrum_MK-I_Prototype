@@ -3,7 +3,7 @@
  * @file    ch224q.c
  * @brief   CH224Q/CH224A USB PD Sink Controller Driver Implementation
  * @version 2.0.0
- * @date    2024-02-16
+ * @date    2026-02-16
  ******************************************************************************
  */
 

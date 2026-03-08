@@ -6,7 +6,8 @@ packDir: null
 srcDirs:
   - Core
   - Drivers
-  - APP
+  - Application
+  - Middlewares
 virtualFolder:
   name: <virtual_root>
   files:
@@ -29,23 +30,25 @@ targets:
         - Drivers/CMSIS/Device/ST/STM32G4xx/Source/Templates
         - Drivers/CMSIS/Device/ST/STM32G4xx/Source
         - Drivers/STM32G4xx_HAL_Driver/Inc
-        - Drivers/STM32G4xx_HAL_Driver/Src
+        - Drivers/STM32G4xx_HAL_Driver/Inc/Legacy
         - Core/Inc
-        - Core/Src
-        - APP
-        - Drivers/CherryUSB/class/cdc
-        - Drivers/CherryUSB/class/hub
-        - Drivers/CherryUSB/common
-        - Drivers/CherryUSB/core
-        - Drivers/CherryUSB/port/fsdev
-        - APP/CDC_ACM
-        - APP/LetterShell
-        - Drivers/SeggerRTT
-        - Drivers/AK4493
-        - Drivers/NJW1195A
-        - Drivers/CT7302
-        - Drivers/CH224Q
-        - APP/PDO
+        - Application/Power
+        - Application/USB
+        - Middlewares/CherryUSB/class/cdc
+        - Middlewares/CherryUSB/class/hub
+        - Middlewares/CherryUSB/common
+        - Middlewares/CherryUSB/core
+        - Middlewares/CherryUSB/port/fsdev
+        - Middlewares/LetterShell
+        - Middlewares/SeggerRTT
+        - Drivers/BSP/AK4493
+        - Drivers/BSP/NJW1195A
+        - Drivers/BSP/CT7302
+        - Drivers/BSP/CH224Q
+        - Application/Audio
+        - Application/CLI
+        - Application/Core
+        - Application/System
       libList: []
     excludeList: []
     toolchain: GCC
