@@ -173,12 +173,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-      /* Process System Status (LED Breathing) */
-      System_Status_Process();
-      
-      /* Process Audio Tasks (Initialization retry, state machine) */
-      Audio_Task();
-      
+    /* Process System Status (LED Breathing) */
+    System_Status_Process();
+    
+    /* Process Audio Tasks (Initialization retry, state machine) */
+    Audio_Task();
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
