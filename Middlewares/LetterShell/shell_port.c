@@ -311,14 +311,14 @@ SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), ak
 
 /**
  * @brief Set NJW1195A Volume
- * usage: vol [channel|all] [value]
+ * usage: njwvol [channel|all] [value]
  * channel: 1-4 or 'all'
  * value: -95.0 to +31.5 (dB) or 0x00-0xFF (Register Hex)
  */
 int setChannelVolume(int argc, char *argv[])
 {
     if (argc < 3) {
-        shellPrint(&shell, "Usage: vol [ch|all] [value]\r\n");
+        shellPrint(&shell, "Usage: njwvol [ch|all] [value]\r\n");
         shellPrint(&shell, "  ch: 1-4 or 'all'\r\n");
         shellPrint(&shell, "  value: dB (-95.0 to 31.5) or Hex (0x00-0xFF)\r\n");
         return -1;
@@ -328,7 +328,7 @@ int setChannelVolume(int argc, char *argv[])
     float dbValue = 0.0f;
     int isDb = 1;
 
-    // Check if value is hex
+    /* 解析音量参数 */
     if (strstr(argv[2], "0x") || strstr(argv[2], "0X")) {
         regValue = (uint8_t)strtol(argv[2], NULL, 16);
         isDb = 0;
@@ -338,39 +338,99 @@ int setChannelVolume(int argc, char *argv[])
     }
 
     if (strcmp(argv[1], "all") == 0) {
-        // Set all channels
-        if (NJW1195A_SetAllVolumes(&hnjw, regValue) == HAL_OK) {
-            if (isDb)
-                shellPrint(&shell, "Set ALL channels to %.1f dB (0x%02X)\r\n", dbValue, regValue);
-            else
-                shellPrint(&shell, "Set ALL channels to 0x%02X\r\n", regValue);
-        } else if (NJW1195A_SetAllVolumes(&hnjw, regValue) == HAL_BUSY) {
-            shellPrint(&shell, "Failed to set volume Busy\r\n");    
-        } else {
-            shellPrint(&shell, "Failed to set volume Error\r\n");
+        /* 全通道入队，不阻塞 */
+        HAL_StatusTypeDef s1 = NJW1195A_EnqueueVolume(&hnjw, NJW1195A_REG_VOL_CH1, regValue);
+        HAL_StatusTypeDef s2 = NJW1195A_EnqueueVolume(&hnjw, NJW1195A_REG_VOL_CH2, regValue);
+
+        if (s1 != HAL_OK || s2 != HAL_OK) {
+            shellPrint(&shell, "Failed to enqueue volume (queue full?)\r\n");
+            return -1;
         }
+
+        if (!hnjw.IsDiffMode) {
+            HAL_StatusTypeDef s3 = NJW1195A_EnqueueVolume(&hnjw, NJW1195A_REG_VOL_CH3, regValue);
+            HAL_StatusTypeDef s4 = NJW1195A_EnqueueVolume(&hnjw, NJW1195A_REG_VOL_CH4, regValue);
+            if (s3 != HAL_OK || s4 != HAL_OK) {
+                shellPrint(&shell, "Failed to enqueue CH3/CH4 (queue full?)\r\n");
+                return -1;
+            }
+        }
+
+        if (isDb)
+            shellPrint(&shell, "Enqueued ALL channels to %.1f dB (0x%02X)\r\n", dbValue, regValue);
+        else
+            shellPrint(&shell, "Enqueued ALL channels to 0x%02X\r\n", regValue);
+
     } else {
-        // Set specific channel
+        /* 单通道入队 */
         int ch = atoi(argv[1]);
         if (ch < 1 || ch > 4) {
             shellPrint(&shell, "Invalid channel: %d (must be 1-4)\r\n", ch);
             return -1;
         }
 
-        // Map 1-4 to 0-3 (Driver defines CH1 as 0x00)
-        uint8_t channelReg = ch - 1;
-
-        if (NJW1195A_SetVolume_DMA(&hnjw, channelReg, regValue) == HAL_OK) {
-            if (isDb)
-                shellPrint(&shell, "Set CH%d to %.1f dB (0x%02X) via DMA\r\n", ch, dbValue, regValue);
-            else
-                shellPrint(&shell, "Set CH%d to 0x%02X via DMA\r\n", ch, regValue);
-        } else {
-            shellPrint(&shell, "Failed to set volume (Busy/Error)\r\n");
+        /* 差分模式下 CH3/CH4 无效 */
+        if (hnjw.IsDiffMode && ch > 2) {
+            shellPrint(&shell, "CH%d not available in differential mode\r\n", ch);
+            return -1;
         }
+
+        uint8_t channelReg = (uint8_t)(ch - 1);
+        HAL_StatusTypeDef status = NJW1195A_EnqueueVolume(&hnjw, channelReg, regValue);
+
+        if (status != HAL_OK) {
+            shellPrint(&shell, "Failed to enqueue CH%d (queue full?)\r\n", ch);
+            return -1;
+        }
+
+        if (isDb)
+            shellPrint(&shell, "Enqueued CH%d to %.1f dB (0x%02X)\r\n", ch, dbValue, regValue);
+        else
+            shellPrint(&shell, "Enqueued CH%d to 0x%02X\r\n", ch, regValue);
     }
 
     return 0;
 }
-SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), vol, setChannelVolume, set volume control);
+SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), njwvol, setChannelVolume, set volume control);
 
+/**
+ * @brief Set NJW1195A Differential Input Source
+ * usage: njwsel [0|1|2]
+ * 0: Mute
+ * 1: Differential Input 1
+ * 2: Differential Input 2
+ */
+int setDiffInput(int argc, char *argv[])
+{
+    if (argc < 2) {
+        shellPrint(&shell, "Usage: njwsel [0|1|2]\r\n");
+        shellPrint(&shell, "  0: Mute\r\n");
+        shellPrint(&shell, "  1: Diff Input 1\r\n");
+        shellPrint(&shell, "  2: Diff Input 2\r\n");
+        return -1;
+    }
+
+    int sel = atoi(argv[1]);
+    if (sel < 0 || sel > 2) {
+        shellPrint(&shell, "Invalid selector: %d (must be 0, 1, or 2)\r\n", sel);
+        return -1;
+    }
+
+    /* 校验当前是否处于差分模式 */
+    if (!hnjw.IsDiffMode) {
+        shellPrint(&shell, "Error: njwsel is currently designed for Differential Mode only.\r\n");
+        return -1;
+    }
+
+    /* 调用纯非阻塞的入队函数 */
+    HAL_StatusTypeDef status = NJW1195A_EnqueueInput_Diff(&hnjw, (uint8_t)sel);
+
+    if (status != HAL_OK) {
+        shellPrint(&shell, "Failed to enqueue input selection (queue full?)\r\n");
+        return -1;
+    }
+
+    shellPrint(&shell, "Enqueued Diff Input selection: %d\r\n", sel);
+    return 0;
+}
+SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), njwsel, setDiffInput, set differential input source);

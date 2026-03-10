@@ -207,7 +207,7 @@ HAL_StatusTypeDef NJW1195A_Core_Config(NJW1195A_HandleTypeDef *hnjw)
 
     if (hnjw->IsDiffMode)
     {
-        /* 差分模式：DefaultInput 只能是 0（Mute）、1 或 2 */
+        /* Differential Mode：DefaultInput only 0 (Mute), 1 or 2 */
         switch (hnjw->DefaultInput)
         {
         case 1U:
@@ -224,7 +224,7 @@ HAL_StatusTypeDef NJW1195A_Core_Config(NJW1195A_HandleTypeDef *hnjw)
     }
     else
     {
-        /* 单端模式：DefaultInput 可以是 0（Mute）、1~4 */
+        /* Single End Mode：DefaultInput can be 0 (Mute), 1~4 */
         uint8_t sel = (hnjw->DefaultInput <= 4U) ? hnjw->DefaultInput : 0U;
         initDataA = ((sel & 0x07U) << 5) | ((sel & 0x07U) << 2);
         initDataB = initDataA;
@@ -394,13 +394,18 @@ HAL_StatusTypeDef NJW1195A_EnqueueVolume(NJW1195A_HandleTypeDef *hnjw,
     if (hnjw == NULL || !hnjw->IsInitialized) return HAL_ERROR;
     if (channel > NJW1195A_REG_VOL_CH4)       return HAL_ERROR;
 
+    __disable_irq(); /* 关中断防止被主循环打断 */
+
     /* If bus is free, fire immediately */
-    if (!hnjw->IsBusy) {
-        return NJW1195A_SendCommand_DMA(hnjw, channel, level);
-    }
+    // if (!hnjw->IsBusy) {
+    //     hnjw->IsBusy = 1U;
+    //     __enable_irq();
+    //     return NJW1195A_SendCommand_DMA(hnjw, channel, level);
+    // }
 
     /* Otherwise enqueue (queue depth = 4) */
     if (hnjw->QueuedCommands >= 4U) {
+        __enable_irq();
         return HAL_ERROR; /* Queue full */
     }
 
@@ -408,6 +413,46 @@ HAL_StatusTypeDef NJW1195A_EnqueueVolume(NJW1195A_HandleTypeDef *hnjw,
     hnjw->QueuedLevels  [hnjw->QueuedCommands] = level;
     hnjw->QueuedCommands++;
 
+    __enable_irq();
+    return HAL_OK;
+}
+
+/**
+ * @brief  无阻塞入队：配置差分模式下的输入信源
+ * @param  selector  0 = Mute, 1 = Diff Input 1, 2 = Diff Input 2
+ */
+HAL_StatusTypeDef NJW1195A_EnqueueInput_Diff(NJW1195A_HandleTypeDef *hnjw, uint8_t selector)
+{
+    if (hnjw == NULL || !hnjw->IsInitialized || !hnjw->IsDiffMode) return HAL_ERROR;
+
+    uint8_t dataA;
+    switch (selector) {
+        case 1U: dataA = NJW1195A_DIFF_INPUT_1; break;  /* 0x44 */
+        case 2U: dataA = NJW1195A_DIFF_INPUT_2; break;  /* 0x70 */
+        default: dataA = NJW1195A_DIFF_INPUT_MUTE; break; /* 0x00 */
+    }
+
+    __disable_irq(); 
+
+    /* 信源切换需要连续发2帧 (0x04 和 0x05寄存器)，检查队列是否至少有2个空位 */
+    /* 强烈建议在头文件里把队列数组大小改为 8 (uint8_t QueuedChannels[8]) */
+    if ((hnjw->QueuedCommands + 2U) > 8U) { 
+        __enable_irq();
+        return HAL_ERROR; /* 队列满 */
+    }
+
+    /* 压入第一帧：Selector 1A/2A (寄存器 0x04) */
+    hnjw->QueuedChannels[hnjw->QueuedCommands] = NJW1195A_REG_SEL_1A_2A;
+    hnjw->QueuedLevels  [hnjw->QueuedCommands] = dataA;
+    hnjw->QueuedCommands++;
+
+    /* 压入第二帧：Selector 1B/2B (寄存器 0x05) */
+    hnjw->QueuedChannels[hnjw->QueuedCommands] = NJW1195A_REG_SEL_1B_2B;
+    hnjw->QueuedLevels  [hnjw->QueuedCommands] = dataA;
+    hnjw->QueuedCommands++;
+
+    __enable_irq();
+    
     return HAL_OK;
 }
 
@@ -462,11 +507,8 @@ void NJW1195A_ProcessQueue(NJW1195A_HandleTypeDef *hnjw)
 {
     if (hnjw == NULL || !hnjw->IsInitialized) return;
 
-    /* 如果 SPI 空闲，且队列中有任务待办 */
+    __disable_irq(); /* 扩大临界区，把状态判断包进来 */
     if (hnjw->IsBusy == 0U && hnjw->QueuedCommands > 0U) {
-        
-        /* 关中断保护队列操作的原子性 */
-        __disable_irq();
         
         uint8_t nextChannel = hnjw->QueuedChannels[0];
         uint8_t nextLevel   = hnjw->QueuedLevels[0];
@@ -478,16 +520,46 @@ void NJW1195A_ProcessQueue(NJW1195A_HandleTypeDef *hnjw)
         }
         hnjw->QueuedCommands--;
         
+        /* 提前抢占总线状态，防止中断趁虚而入！ */
+        hnjw->IsBusy = 1U; 
+        
         __enable_irq();
 
-        /* 🌟 核心：因为这是在主循环中，短暂阻塞完全无害！
-         * 强制延时 2us，确保上一次中断拉高 LATCH 后，至少维持了 1.6us 的高电平 (t8) 
-         */
         DWT_Delay_us(2U); 
 
-        /* 发出下一个 DMA 传输请求 */
+        /* 调用底层 DMA（需要把 SendCommand_DMA 里的 IsBusy=1 删掉或保留都行，这里已经提前置位了） */
         NJW1195A_SendCommand_DMA(hnjw, nextChannel, nextLevel);
+    } else {
+        __enable_irq();
     }
+    // if (hnjw == NULL || !hnjw->IsInitialized) return;
+
+    // /* 如果 SPI 空闲，且队列中有任务待办 */
+    // if (hnjw->IsBusy == 0U && hnjw->QueuedCommands > 0U) {
+        
+    //     /* 关中断保护队列操作的原子性 */
+    //     __disable_irq();
+        
+    //     uint8_t nextChannel = hnjw->QueuedChannels[0];
+    //     uint8_t nextLevel   = hnjw->QueuedLevels[0];
+
+    //     /* 队列前移 */
+    //     for (uint8_t i = 0U; i < (hnjw->QueuedCommands - 1U); i++) {
+    //         hnjw->QueuedChannels[i] = hnjw->QueuedChannels[i + 1U];
+    //         hnjw->QueuedLevels  [i] = hnjw->QueuedLevels  [i + 1U];
+    //     }
+    //     hnjw->QueuedCommands--;
+        
+    //     __enable_irq();
+
+    //     /* 因为这是在主循环中，短暂阻塞完全无害！
+    //      * 强制延时 2us，确保上一次中断拉高 LATCH 后，至少维持了 1.6us 的高电平 (t8) 
+    //      */
+    //     DWT_Delay_us(2U); 
+
+    //     /* 发出下一个 DMA 传输请求 */
+    //     NJW1195A_SendCommand_DMA(hnjw, nextChannel, nextLevel);
+    // }
 }
 
 /* -------------------------------------------------------

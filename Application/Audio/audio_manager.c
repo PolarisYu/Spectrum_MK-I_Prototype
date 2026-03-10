@@ -81,19 +81,18 @@ void Audio_Task(void)
             if (AK4493_RegInit(&hak) == HAL_OK) {
                 USB_LOG_INFO("AK4493 Reg Init Success!\r\n");
                 HAL_Delay(10);
-                AK4493_SetVolume(&hak, 140); 
+                AK4493_SetVolume(&hak, 200); 
                 AK4493_SetMute(&hak, 0);           // 解除静音
-                HAL_Delay(100);
                 // 2. 逐步增加音量
-                for (int vol = 140; vol <= 255; vol++) {
-                    AK4493_SetVolume(&hak, vol);
-                    HAL_Delay(50);
-                }
+                // for (int vol = 140; vol <= 255; vol++) {
+                //     AK4493_SetVolume(&hak, vol);
+                //     HAL_Delay(50);
+                // }
                 USB_LOG_INFO("AK4493 Volume ramped to 0dB (Maximum)\r\n");
                 hak.IsInitialized = 1;
                 ak4493_init_needed = 0; // Clear flag
 
-                NJW1195A_SetAllVolumes(&hnjw, NJW1195A_dBToRegister(0.0));
+                NJW1195A_SetAllVolumes(&hnjw, NJW1195A_dBToRegister(-30.0f));
                 break;
             } else {
                 USB_LOG_INFO("AK4493 Reg Init Failed. Retrying in 100ms...\r\n");

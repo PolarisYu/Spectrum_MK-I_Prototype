@@ -115,8 +115,8 @@ typedef struct {
 
     /* DMA command queue (max 4 pending commands) */
     uint8_t            QueuedCommands;
-    uint8_t            QueuedChannels[4];
-    uint8_t            QueuedLevels[4];
+    uint8_t            QueuedChannels[8];
+    uint8_t            QueuedLevels[8];
 
     /* State flags */
     uint8_t            IsInitialized; /* 0 = not ready, 1 = hardware ready */
@@ -183,6 +183,13 @@ HAL_StatusTypeDef NJW1195A_SetInput_Diff(NJW1195A_HandleTypeDef *hnjw,
  */
 HAL_StatusTypeDef NJW1195A_EnqueueVolume(NJW1195A_HandleTypeDef *hnjw,
                                           uint8_t channel, uint8_t level);
+
+/**
+ * @brief  Queue a differential input selector command for DMA dispatch.
+ *         Must be called when IsBusy == 0 or the queue has space.
+ *         Returns HAL_ERROR if the queue is full (max 4 entries).
+ */
+HAL_StatusTypeDef NJW1195A_EnqueueInput_Diff(NJW1195A_HandleTypeDef *hnjw, uint8_t selector);
 
 /**
  * @brief  Must be called from HAL_SPI_TxCpltCallback() in main/irq file.
